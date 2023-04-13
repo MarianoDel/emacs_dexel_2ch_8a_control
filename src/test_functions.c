@@ -19,6 +19,8 @@
 #include "tim.h"
 #include "flash_program.h"
 
+
+
 #include <stdio.h>
 #include <string.h>
 
@@ -39,50 +41,38 @@ extern volatile unsigned char adc_int_seq_ready;
 
 // Module Private Functions ----------------------------------------------------
 void TF_Led (void);
-void TF_Led_Alarm_Input (void);
-void TF_Led_Alarm_Input_Filtered (void);
-void TF_Act_12V (void);
-void TF_Led_Blinking (void);
-void TF_Usart2_TxRx (void);
-void TF_Usart2_NetLight_and_Status (void);
-void TF_Usart2_Adc_Polling (void);
-void TF_Usart2_Adc_Interrupt (void);
-void TF_Usart2_Adc_Dma (void);
-void TF_Usart2_Flash_Empty_Page (void);
-void TF_Usart2_Flash_Write_Data (void);
-
-void TF_Gpio_Input (void);
-void TF_Gpio_Share_Outputs (void);
-void TF_Usart1_Single (void);
-void TF_Usart1_Multiple (void);
-void TF_Usart1_TxRx (void);
-void TF_Usart1_Adc (void);
-void TF_Usart1_Adc_Int (void);
-void TF_Usart1_Adc_Dma (void);
-void TF_Usart2_Single (void);
-void TF_Usart2_Multiple (void);
-void TF_Tim3_Pwm (void);
-void TF_Usart1_Flash_Empty_Page (void);
-void TF_Usart1_Flash_Write_Data (void);
-void TF_ReadMemory (void);
+void TF_ENA_CH1_ENA_CH2_SW_SEL (void);
+void TF_SW_UP (void);
+void TF_SW_DWN (void);
+void TF_SW_SEL (void);
+void TF_lcdE (void);
+void TF_lcdRS (void);
+void TF_lcdBklight (void);
+void TF_lcdData (void);
+void TF_lcdBlink (void);
+void TF_lcdScroll (void);
+void TF_MenuFunction (void);
+void TF_Dmx_Packet (void);
+void TF_Dmx_Packet_Data (void);
+void TF_Temp_Channel (void);
 
 
 // Module Functions ------------------------------------------------------------
 void TF_Hardware_Tests (void)
 {
-    // TF_Led ();
-    // TF_Led_Alarm_Input ();
-    // TF_Alarm_Input_As_Output ();
-    // TF_Led_Alarm_Input_Filtered ();
-    // TF_Act_12V ();
-    // TF_Led_Blinking();
-    // TF_Usart2_TxRx ();
-    // TF_Usart2_NetLight_and_Status ();
-    TF_Usart2_Adc_Polling ();
-    // TF_Usart2_Adc_Interrupt ();
-    // TF_Usart2_Adc_Dma ();
-    // TF_Usart2_Flash_Empty_Page ();
-    // TF_Usart2_Flash_Write_Data ();
+    TF_Led();    //simple led functionality
+    // TF_SW_UP();
+    // TF_SW_DWN();
+    // TF_SW_SEL();    
+    // TF_lcdE();
+    // TF_lcdRS();
+    // TF_lcdData();
+    // TF_lcdBklight();
+    // TF_lcdBlink();
+    // TF_lcdScroll();
+    // TF_Dmx_Packet ();
+    // TF_Dmx_Packet_Data ();
+    // TF_Temp_Channel ();    
     
 }
 
@@ -101,515 +91,260 @@ void TF_Led (void)
 }
 
 
-void TF_Led_Alarm_Input (void)
+void TF_SW_UP (void)
 {
     while (1)
     {
-        if (ALARM_INPUT)
+        if (SW_UP)
             LED_ON;
         else
             LED_OFF;
-
-        Wait_ms(300);
-    }
+    }    
 }
 
 
-void TF_Led_Alarm_Input_Filtered (void)
+void TF_SW_SEL (void)
 {
     while (1)
     {
-        if (Check_Alarm_Input())
+        if (SW_SEL)
             LED_ON;
         else
             LED_OFF;
-
-    }
+    }    
 }
 
 
-void TF_Act_12V (void)
+void TF_SW_DWN (void)
 {
     while (1)
     {
-        if (ACT_12V)
-            ACT_12V_OFF;
+        if (SW_DWN)
+            LED_ON;
         else
-            ACT_12V_ON;
+            LED_OFF;
+    }    
+}
 
-        Wait_ms(300);
+
+void TF_lcdE (void)
+{
+    while (1)
+    {
+        if (LCD_E)
+            LCD_E_OFF;
+        else
+            LCD_E_ON;
+
+        Wait_ms(10);
     }
 }
 
 
-void TF_Led_Blinking (void)
+void TF_lcdRS (void)
 {
-    ChangeLed(LED_GSM_NETWORK_LOW_RSSI);
     while (1)
-        UpdateLed();
+    {
+        if (LCD_RS)
+            LCD_RS_OFF;
+        else
+            LCD_RS_ON;
 
+        Wait_ms(10);
+    }
 }
 
 
-void TF_Usart2_TxRx (void)
+void TF_lcdBklight (void)
 {
-    for (unsigned char i = 0; i < 5; i++)
+    while (1)
     {
+        if (CTRL_BKL)
+            CTRL_BKL_OFF;
+        else
+            CTRL_BKL_ON;
+
+        Wait_ms(1000);
+    }
+}
+
+
+void TF_lcdData (void)
+{
+    while (1)
+    {
+        //pa0 a pa3
         LED_ON;
-        Wait_ms(250);
+        GPIOA->BSRR = 0x0000000F;
+        Wait_ms(2000);
+        
         LED_OFF;
-        Wait_ms(250);
-    }
-    
-    Usart2Config();
+        GPIOA->BSRR = 0x000F0000;
+        Wait_ms(2000);
 
-    char s_to_send [100] = { 0 };
-    Usart2Send("Ready to test...\n");
-    while (1)
-    {
-        if (usart2_have_data)
-        {
-            usart2_have_data = 0;
+        LED_ON;
+        GPIOA->BSRR = 0x00000005;
+        Wait_ms(2000);
+
+        LED_OFF;
+        GPIOA->BSRR = 0x00050000;
+        Wait_ms(2000);
+
+        LED_ON;
+        GPIOA->BSRR = 0x0000000A;
+        Wait_ms(2000);
+
+        LED_OFF;
+        GPIOA->BSRR = 0x000A0000;
+        Wait_ms(2000);
+    }
+}
+
+
+// void TF_lcdBlink (void)
+// {
+//     LCD_UtilsInit();
+//     CTRL_BKL_ON;
+
+//     while (1)
+//     {
+//         while (LCD_ShowBlink("Kirno Technology",
+//                              "  Smart Driver  ",
+//                              2,
+//                              BLINK_DIRECT) != resp_finish);
+
+//         LCD_ClearScreen();
+//         Wait_ms(1000);
+//     }
+// }
+
+
+// void TF_lcdScroll (void)
+// {
+//     resp_t resp = resp_continue;
+
+//     LCD_UtilsInit();
+//     CTRL_BKL_ON;
+    
+//     while (1)
+//     {
+//         // LCD_ClearScreen();
+//         // Wait_ms(2000);
+//         do {
+//             resp = LCD_Scroll1 ("Dexel Lighting DMX 2 channels 8 amps controller.");
+//         } while (resp != resp_finish);
+
+//         Wait_ms(2000);
+//     }
+// }
+
+
+// void TF_Dmx_Packet (void)
+// {
+//     Usart1Config();
+//     TIM_14_Init();
+//     DMX_channel_selected = 1;
+//     DMX_channel_quantity = 2;
+//     DMX_EnableRx();
+
+//     while (1)
+//     {
+//         if (Packet_Detected_Flag)
+//         {
+//             Packet_Detected_Flag = 0;
+//             LED_ON;
+//             Wait_ms(2);
+//             LED_OFF;
+//         }
+//     }
+// }
+
+
+// void TF_Dmx_Packet_Data (void)
+// {
+//     // Init LCD
+//     LCD_UtilsInit();
+//     CTRL_BKL_ON;
+//     LCD_ClearScreen();
+//     Wait_ms(1000);
+
+//     // Init DMX
+//     Usart1Config();
+//     TIM_14_Init();
+//     DMX_channel_selected = 1;
+//     DMX_channel_quantity = 2;
+//     DMX_EnableRx();
+
+//     unsigned char dmx_data1 = 0;
+//     unsigned char dmx_data2 = 0;    
+
+//     while (1)
+//     {
+//         if (Packet_Detected_Flag)
+//         {
+//             Packet_Detected_Flag = 0;
+//             LED_ON;
+
+//             if (dmx_buff_data[0] == 0)
+//             {
+//                 char s_lcd [20] = { 0 };
+
+//                 if (dmx_data1 != dmx_buff_data[1])
+//                 {
+//                     sprintf(s_lcd, "ch1: %03d", dmx_buff_data[1]);
+//                     LCD_Writel1(s_lcd);
+//                     dmx_data1 = dmx_buff_data[1];
+//                 }
+
+//                 if (dmx_data2 != dmx_buff_data[2])
+//                 {
+//                     sprintf(s_lcd, "ch2: %03d", dmx_buff_data[2]);
+//                     LCD_Writel2(s_lcd);
+//                     dmx_data2 = dmx_buff_data[2];
+//                 }
+//             }
             
-            if (LED)
-                LED_OFF;
-            else
-                LED_ON;
-            
-            Usart2ReadBuffer((unsigned char *) s_to_send, 100);
-            Wait_ms(1000);
-            Usart2Send(s_to_send);
-        }
-    }
-}
+//             LED_OFF;
+//         }
+//     }
+// }
 
 
-#if (defined HARDWARE_VER_1_2) || \
-    (defined HARDWARE_VER_1_1) || \
-    (defined HARDWARE_VER_1_0)
-void TF_Usart2_NetLight_and_Status (void)
-{
-    for (unsigned char i = 0; i < 5; i++)
-    {
-        LED_ON;
-        Wait_ms(250);
-        LED_OFF;
-        Wait_ms(250);
-    }
+// void TF_Temp_Channel (void)
+// {
+//     // Init LCD
+//     LCD_UtilsInit();
+//     CTRL_BKL_ON;
+//     LCD_ClearScreen();
+//     Wait_ms(1000);
+
+//     // Init Tim
+//     TIM_3_Init();
+
+//     // Init ADC and DMA
+//     AdcConfig();
+//     DMAConfig();
+//     DMA1_Channel1->CCR |= DMA_CCR_EN;
+//     ADC1->CR |= ADC_CR_ADSTART;
     
-    Usart2Config();
-    Usart2Send("Ready to test NetLight and Status...\n");
-    
-    unsigned char netlight_state = 0;
-    unsigned char status_state = 0;
-    while (1)
-    {
-        if (NETLIGHT)
-        {
-            if (netlight_state != NETLIGHT)
-            {
-                netlight_state = NETLIGHT;
-                Usart2Send("NetLight is ON\n");
-            }
-        }
-        else
-        {
-            if (netlight_state != NETLIGHT)
-            {
-                netlight_state = NETLIGHT;
-                Usart2Send("NetLight is OFF\n");
-            }
-        }
-
-        if (STATUS)
-        {
-            if (status_state != STATUS)
-            {
-                status_state = STATUS;
-                Usart2Send("Status is ON\n");
-            }
-        }
-        else
-        {
-            if (status_state != STATUS)
-            {
-                status_state = STATUS;
-                Usart2Send("Status is OFF\n");
-            }
-        }
-    }
-}
-#endif
-
-
-void TF_Usart2_Adc_Polling (void)
-{
-    for (unsigned char i = 0; i < 5; i++)
-    {
-        LED_ON;
-        Wait_ms(250);
-        LED_OFF;
-        Wait_ms(250);
-    }
-    
-    Usart2Config();
-
-    //-- ADC Init
-    AdcConfig();
-    ADC1->CR |= ADC_CR_ADSTART;
-
-    unsigned short cntr = 0;
-    char s_to_send [100] = { 0 };
-    Usart2Send("\nTesting ADC with polling...\n");
-
-    while (1)
-    {
-        if (ADC1->ISR & ADC_ISR_EOC)
-        {
-            ADC1->ISR |= ADC_ISR_EOC;
-            if (cntr < 10000)
-                cntr++;
-            else
-            {
-                sprintf(s_to_send, "last ADC: %d\n", (unsigned short) ADC1->DR);
-                Usart2Send(s_to_send);
-                cntr = 0;
-            }
-        }
-    }
-}
-
-
-void TF_Usart2_Adc_Interrupt (void)
-{
-    for (unsigned char i = 0; i < 5; i++)
-    {
-        LED_ON;
-        Wait_ms(250);
-        LED_OFF;
-        Wait_ms(250);
-    }
-    
-    Usart2Config();
-
-    //-- ADC Init
-    AdcConfig();
-    ADC1->CR |= ADC_CR_ADSTART;
-
-    unsigned short cntr = 0;
-    char s_to_send [100] = { 0 };
-    Usart2Send("\nTesting ADC with Interrupts...\n");
-
-    while (1)
-    {
-        if (adc_int_seq_ready)
-        {
-            adc_int_seq_ready = 0;
-            if (LED)
-                LED_OFF;
-            else
-                LED_ON;
-            
-            if (cntr < 10000)
-                cntr++;
-            else
-            {
-                sprintf(s_to_send, "V_Sense_4V: %d V_Sense_12V: %d\n",
-                        V_Sense_4V,
-                        V_Sense_12V);
-                Usart2Send(s_to_send);
-                cntr = 0;
-            }
-        }
-    }
-}
-
-
-void TF_Usart2_Adc_Dma (void)
-{
-    for (unsigned char i = 0; i < 5; i++)
-    {
-        LED_ON;
-        Wait_ms(250);
-        LED_OFF;
-        Wait_ms(250);
-    }
-    
-    Usart2Config();
-
-    //-- ADC Init
-    AdcConfig();
-
-    //-- DMA configuration and Init
-    DMAConfig();
-    DMA1_Channel1->CCR |= DMA_CCR_EN;
-
-    ADC1->CR |= ADC_CR_ADSTART;
-
-    // int eoc = 0;
-    // int ovr = 0;
-    unsigned short cntr = 0;
-    char s_to_send [100] = { 0 };
-    Usart2Send("\nTesting ADC with dma transfers...\n");
-
-    while (1)
-    {
-        if (sequence_ready)
-        {
-            sequence_ready_reset;
-            if (cntr < 10000)
-                cntr++;
-            else
-            {
-                sprintf(s_to_send, "V_Sense_4V: %d V_Sense_12V: %d\n",
-                        V_Sense_4V,
-                        V_Sense_12V);
-                
-                Usart2Send(s_to_send);
-                cntr = 0;
-            }
-        }
-
-        // if (ADC1->ISR & ADC_ISR_OVR)
-        // {
-        //     ADC1->ISR |= ADC_ISR_OVR;
-        //     if (!ovr)
-        //         ovr = 1;
-        // }
-
-        // if (ovr == 1)
-        // {
-        //     ovr++;
-        //     Usart2Send("DMA overrun!\n");
-        // }
-        // else if (ovr == 2)
-        // {
-        //     if (Usart2SendVerifyEmpty())
-        //         ovr = 0;
-        // }
-
-        // if (ADC1->ISR & ADC_ISR_EOC)
-        // {
-        //     ADC1->ISR |= ADC_ISR_EOC;
-        //     if (!eoc)
-        //         eoc = 1;
-        // }
+//     char s_lcd [30] = { 0 };
+//     unsigned char temp_degrees = 0;
+//     while (1)
+//     {
+//         Wait_ms (500);
+//         temp_degrees = Temp_TempToDegrees(Temp_Channel);
         
-        // if (eoc == 1)
-        // {
-        //     eoc++;
-        //     Usart2Send("EOC\n");
-        // }
-        // else if (eoc == 2)
-        // {
-        //     if (Usart2SendVerifyEmpty())
-        //         eoc = 0;
-        // }
-    }
-}
+//         sprintf(s_lcd, "Ch: %04d T: %d",
+//                 Temp_Channel,
+//                 temp_degrees);
 
+//         LCD_Writel1(s_lcd);
 
-void TF_Usart2_Flash_Empty_Page (void)
-{
-    for (unsigned char i = 0; i < 5; i++)
-    {
-        LED_ON;
-        Wait_ms(250);
-        LED_OFF;
-        Wait_ms(250);
-    }
-    
-    Usart2Config();
+//         sprintf(s_lcd, "convert: %04d",
+//                 Temp_DegreesToTemp(temp_degrees));
 
-    char s_to_send [100] = { 0 };
-    unsigned char * p;
-    p = (unsigned char *) PAGE15_ADDR;
-    
-    Usart2Send("\nReading Flash Data...\n");
+//         LCD_Writel2(s_lcd);
+//     }
+// }
 
-    for (unsigned char i = 0; i < 64; i+=8)
-    {
-        sprintf(s_to_send, "0x%x %d %d %d %d %d %d %d %d\n",
-                (unsigned int) (p + i),
-                *(p + i + 0),
-                *(p + i + 1),
-                *(p + i + 2),
-                *(p + i + 3),
-                *(p + i + 4),
-                *(p + i + 5),
-                *(p + i + 6),
-                *(p + i + 7));
-        
-        Usart2Send(s_to_send);
-        Wait_ms(20);
-    }
-
-    Usart2Send("\nBlanking flash...\n");
-    Wait_ms(500);
-    if (Flash_ErasePage(FLASH_PAGE_FOR_BKP, 1) == FLASH_COMPLETE)
-    {
-        Usart2Send("Blank OK\n");
-        Wait_ms(100);
-    }
-    else
-    {
-        Usart2Send("Blank NOK\n");
-        Wait_ms(100);
-    }
-
-    Usart2Send("\nReading Flash Data...\n");
-
-    for (unsigned char i = 0; i < 64; i+=8)
-    {
-        sprintf(s_to_send, "0x%x %d %d %d %d %d %d %d %d\n",
-                (unsigned int) (p + i),
-                *(p + i + 0),
-                *(p + i + 1),
-                *(p + i + 2),
-                *(p + i + 3),
-                *(p + i + 4),
-                *(p + i + 5),
-                *(p + i + 6),
-                *(p + i + 7));
-        
-        Usart2Send(s_to_send);
-        Wait_ms(20);
-    }
-    
-    while (1)
-    {
-        Wait_ms(300);
-        if (LED)
-            LED_OFF;
-        else
-            LED_ON;
-
-    }
-}
-
-
-void TF_Usart2_Flash_Write_Data (void)
-{
-    for (unsigned char i = 0; i < 5; i++)
-    {
-        LED_ON;
-        Wait_ms(250);
-        LED_OFF;
-        Wait_ms(250);
-    }
-    
-    Usart2Config();
-
-    char s_to_send [100] = { 0 };
-    unsigned char * p;
-    p = (unsigned char *) PAGE15_ADDR;
-    
-    Usart2Send("\nReading Flash Data...\n");
-
-    for (unsigned char i = 0; i < 64; i+=8)
-    {
-        sprintf(s_to_send, "0x%x %d %d %d %d %d %d %d %d\n",
-                (unsigned int) (p + i),
-                *(p + i + 0),
-                *(p + i + 1),
-                *(p + i + 2),
-                *(p + i + 3),
-                *(p + i + 4),
-                *(p + i + 5),
-                *(p + i + 6),
-                *(p + i + 7));
-        
-        Usart2Send(s_to_send);
-        Wait_ms(20);
-    }
-
-    //write mem conf
-    struct mem_conf_st {
-        uint32_t d0;
-        uint32_t d1;
-        uint32_t d2;
-        uint32_t d3;
-    };
-
-    struct mem_conf_st mem_conf;
-    mem_conf.d0 = 0x5555;
-    mem_conf.d1 = 0xAAAA;
-    mem_conf.d2 = 0x0000;
-    mem_conf.d3 = 0x7777;
-
-    Usart2Send("\nWriting Flash...\n");
-    Wait_ms(300);
-    if (Flash_WriteConfigurations((uint32_t *) &mem_conf, sizeof(mem_conf)) == FLASH_COMPLETE)
-        Usart2Send("Seems all good\n");
-
-    Wait_ms(300);
-    for (unsigned char i = 0; i < 64; i+=8)
-    {
-        sprintf(s_to_send, "0x%x %x %x %x %x %x %x %x %x\n",
-                (unsigned int) (p + i),
-                *(p + i + 0),
-                *(p + i + 1),
-                *(p + i + 2),
-                *(p + i + 3),
-                *(p + i + 4),
-                *(p + i + 5),
-                *(p + i + 6),
-                *(p + i + 7));
-        
-        Usart2Send(s_to_send);
-        Wait_ms(20);
-    }
-
-    Wait_ms(300);
-    Usart2Send("\nVerifing Flash Backuped Data...\n");
-    Wait_ms(300);
-
-    struct mem_conf_st mem_backuped;
-    memcpy(&mem_backuped, (uint32_t *) FLASH_ADDRESS_FOR_BKP, sizeof(mem_backuped));
-
-    if ((mem_conf.d0 == mem_backuped.d0) &&
-        (mem_conf.d1 == mem_backuped.d1) &&
-        (mem_conf.d2 == mem_backuped.d2) &&
-        (mem_conf.d3 == mem_backuped.d3))
-        Usart2Send("Verified OK!!!\n");
-    else
-        Usart2Send("Verified NOK errors in backuped data\n");
-        
-    while (1)
-    {
-        Wait_ms(300);
-        if (LED)
-            LED_OFF;
-        else
-            LED_ON;
-
-    }
-}
-
-
-void TF_ReadMemory (void)
-{
-    char s_to_send [100] = { 0 };
-    unsigned char * p;
-    p = (unsigned char *) PAGE15_ADDR;
-    
-    Usart2Send("\nReading Flash Data...\n");
-
-    for (unsigned char i = 0; i < 127; i+=8)
-    {
-        sprintf(s_to_send, "0x%x %d %d %d %d %d %d %d %d\n",
-                (unsigned int) (p + i),
-                *(p + i + 0),
-                *(p + i + 1),
-                *(p + i + 2),
-                *(p + i + 3),
-                *(p + i + 4),
-                *(p + i + 5),
-                *(p + i + 6),
-                *(p + i + 7));
-        
-        Usart2Send(s_to_send);
-        Wait_ms(20);
-    }
-}
 //--- end of file ---//

@@ -76,24 +76,26 @@ SRC += $(BOOTDIR)/syscalls/syscalls.c
 SRC += ./src/it.c
 SRC += ./src/gpio.c
 SRC += ./src/tim.c
-# SRC += ./src/spi.c
 SRC += ./src/adc.c
 SRC += ./src/dma.c
-SRC += ./src/usart.c
+# SRC += ./src/usart.c
 SRC += ./src/flash_program.c
 SRC += ./src/hard.c
 SRC += ./src/test_functions.c
-SRC += ./src/sim900_800.c
-SRC += ./src/funcs_gsm.c
-SRC += ./src/funcs_gsm_gateway.c
-SRC += ./src/comm.c
-SRC += ./src/comms_from_panel.c
-SRC += ./src/dsp.c
-SRC += ./src/battery.c
-SRC += ./src/sms_gprs_data.c
-SRC += ./src/contact_id.c
-SRC += ./src/reports.c
-SRC += ./src/test_debug.c
+
+# SRC += ./src/lcd.c
+# SRC += ./src/lcd_utils.c
+# SRC += ./src/menues.c
+# SRC += ./src/dmx_receiver.c
+# SRC += ./src/dmx_mode.c
+# SRC += ./src/manual_mode.c
+# SRC += ./src/dmx_lcd_menu.c
+# SRC += ./src/temperatures.c
+# SRC += ./src/dmx_utils.c
+# SRC += ./src/filters_and_offsets.c
+
+# SRC += ./src/dsp.c
+
 
 
 ## Core Support

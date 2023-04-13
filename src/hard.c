@@ -1,5 +1,4 @@
 //----------------------------------------------------
-// #### PROYECTO KIRNO REDONDA GSM - Custom Board ####
 // ##
 // ## @Author: Med
 // ## @Editor: Emacs - ggtags
@@ -10,337 +9,189 @@
 
 // Includes --------------------------------------------------------------------
 #include "hard.h"
-#include "tim.h"
 #include "stm32g0xx.h"
-#include "usart.h"
+#include "switches_answers.h"
 
-#include <stdio.h>
 
 // Module Private Types Constants and Macros -----------------------------------
-// led states
-typedef enum
-{    
-    START_BLINKING = 0,
-    WAIT_TO_OFF,
-    WAIT_TO_ON,
-    WAIT_NEW_CYCLE
-    
-} led_state_t;
-
-// Configs
-#define LED_BLINK_ON    LED_ON
-#define LED_BLINK_OFF    LED_OFF
-#define TIMER_BLINK    200
-#define TIMER_BLINK_NEXT_CYCLE    2000
-
-
-#define SWITCHES_ROOF    80
-#define SWITCHES_THRESHOLD_MIN	50
+#define SWITCHES_TIMER_RELOAD    5
+#define SWITCHES_THRESHOLD_FULL	1000    //5 segundos
+#define SWITCHES_THRESHOLD_HALF	50    //250 ms
+#define SWITCHES_THRESHOLD_MIN	10    //50 ms
+#define SWITCHES_THRESHOLD_MIN_FAST    2    //10 ms
 
 
 // Externals -------------------------------------------------------------------
 
 
 // Globals ---------------------------------------------------------------------
-// for the led
-volatile unsigned short timer_led;
-led_state_t led_state = START_BLINKING;
-unsigned char blink = 0;
-unsigned char how_many_blinks = 0;
-
-// for the led_activate
-volatile unsigned short timer_led_activate;
-led_state_t led_activate_state = START_BLINKING;
-unsigned char blink_activate = 0;
-unsigned char how_many_blinks_activate = 0;
-
-volatile unsigned char s_alarm_input_cntr = 0;
-
+//for timers or timeouts
+volatile unsigned char switches_timer = 0;
 
 
 // Module Functions ------------------------------------------------------------
-//cambia configuracion de bips del LED
-void ChangeLed (unsigned char how_many)
-{
-    how_many_blinks = how_many;
-    led_state = START_BLINKING;
-}
-
-//mueve el LED segun el estado del Pote
-void UpdateLed (void)
-{
-    switch (led_state)
-    {
-        case START_BLINKING:
-            blink = how_many_blinks;
-            
-            if (blink)
-            {
-                LED_BLINK_ON;
-                timer_led = TIMER_BLINK;
-                led_state++;
-                blink--;
-            }
-            break;
-
-        case WAIT_TO_OFF:
-            if (!timer_led)
-            {
-                LED_BLINK_OFF;
-                timer_led = TIMER_BLINK;
-                led_state++;
-            }
-            break;
-
-        case WAIT_TO_ON:
-            if (!timer_led)
-            {
-                if (blink)
-                {
-                    blink--;
-                    timer_led = TIMER_BLINK;
-                    led_state = WAIT_TO_OFF;
-                    LED_BLINK_ON;
-                }
-                else
-                {
-                    led_state = WAIT_NEW_CYCLE;
-                    timer_led = TIMER_BLINK_NEXT_CYCLE;
-                }
-            }
-            break;
-
-        case WAIT_NEW_CYCLE:
-            if (!timer_led)
-                led_state = START_BLINKING;
-
-            break;
-
-        default:
-            led_state = START_BLINKING;
-            break;
-    }
-}
-
-
-void ChangeLedActivate (unsigned char how_many)
-{
-    how_many_blinks_activate = how_many;
-    led_activate_state = START_BLINKING;
-}
-
-
-void UpdateLedActivate (void)
-{
-    switch (led_activate_state)
-    {
-        case START_BLINKING:
-            blink_activate = how_many_blinks_activate;
-            
-            if (blink_activate)
-            {
-                ACT_12V_ON;
-                timer_led_activate = TIMER_BLINK;
-                led_activate_state++;
-                blink_activate--;
-            }
-            break;
-
-        case WAIT_TO_OFF:
-            if (!timer_led_activate)
-            {
-                ACT_12V_OFF;
-                timer_led_activate = TIMER_BLINK;
-                led_activate_state++;
-            }
-            break;
-
-        case WAIT_TO_ON:
-            if (!timer_led_activate)
-            {
-                if (blink_activate)
-                {
-                    blink_activate--;
-                    timer_led_activate = TIMER_BLINK;
-                    led_activate_state = WAIT_TO_OFF;
-                    ACT_12V_ON;
-                }
-                else
-                {
-                    led_activate_state = WAIT_NEW_CYCLE;
-                    timer_led_activate = TIMER_BLINK_NEXT_CYCLE;
-                }
-            }
-            break;
-
-        case WAIT_NEW_CYCLE:
-            if (!timer_led_activate)
-                led_activate_state = START_BLINKING;
-
-            break;
-
-        default:
-            led_activate_state = START_BLINKING;
-            break;
-    }
-}
-
-
-void ToggleLedActivate (void)
-{
-    if (!timer_led_activate)
-    {
-        timer_led_activate = 125;
-        if (ACT_12V)
-            ACT_12V_OFF;
-        else
-            ACT_12V_ON;
-    }
-}
-
-
-void WelcomeCode (void)
-{
-    char str [128] = { 0 };
-    
-    Usart2Debug("\r\nKirno -- Comunicador Vapore SMS --\r\n", 0);
-
-#ifdef HARD
-    Usart2Debug(HARD, 0);
-    Wait_ms(100);    
-#else
-#error	"No Hardware defined in hard.h file"
-#endif
-
-#ifdef SOFT
-    Usart2Debug(SOFT, 0);
-    Wait_ms(100);    
-#else
-#error	"No Soft Version defined in hard.h file"
-#endif
-    
-    Usart2Debug("\r\nFeatures:\r\n", 0);
-    
-    // Main Program Type
-#ifdef DEFAULT_DEBUG_LVL
-    sprintf(str,"[%s] %s: %d\n", __FILE__, str_macro(DEFAULT_DEBUG_LVL), DEFAULT_DEBUG_LVL);
-    Usart2Debug(str, 0);
-    Wait_ms(30);
-#endif
-
-#ifdef USE_GSM_GATEWAY_SM
-    sprintf(str,"[%s] %s\n", __FILE__, str_macro(USE_GSM_GATEWAY_SM));
-    Usart2Debug(str, 0);
-    Wait_ms(30);    
-#endif
-
-#ifdef USE_GSM_GATEWAY_IN_LOOP
-    sprintf(str,"[%s] %s\n", __FILE__, str_macro(USE_GSM_GATEWAY_IN_LOOP));
-    Usart2Debug(str, 0);
-    Wait_ms(30);    
-#endif
-    
-}
-
-
 void HARD_Timeouts (void)
 {
-    if (timer_led)
-        timer_led--;
+    if (switches_timer)
+        switches_timer--;
+}
 
-    if (timer_led_activate)
-        timer_led_activate--;
+
+unsigned short sw_up_cntr = 0;
+unsigned short sw_dwn_cntr = 0;
+unsigned short sw_sel_cntr = 0;
+unsigned char sw_up_cont_cntr = 0;
+unsigned char sw_dwn_cont_cntr = 0;
+resp_sw_t Check_SW_UP (void)
+{
+    resp_sw_t sw = SW_NO;
+
+    if (sw_up_cont_cntr >= 5)
+    {
+        sw_up_cont_cntr = 5;
+
+        if (sw_up_cntr > SWITCHES_THRESHOLD_MIN_FAST)
+        {
+            sw_up_cntr -= SWITCHES_THRESHOLD_MIN_FAST;
+            sw = SW_MIN;
+        }
+    }
+    else if (sw_up_cntr > SWITCHES_THRESHOLD_MIN)
+    {
+        sw_up_cntr -= SWITCHES_THRESHOLD_MIN;
+        sw = SW_MIN;
+        sw_up_cont_cntr++;
+    }
+
+    return sw;    
+}
+
+
+resp_sw_t Check_SW_DWN (void)
+{
+    resp_sw_t sw = SW_NO;
+
+    if (sw_dwn_cont_cntr >= 5)
+    {
+        sw_dwn_cont_cntr = 5;
+
+        if (sw_dwn_cntr > SWITCHES_THRESHOLD_MIN_FAST)
+        {
+            sw_dwn_cntr -= SWITCHES_THRESHOLD_MIN_FAST;
+            sw = SW_MIN;
+        }
+    }
+    else if (sw_dwn_cntr > SWITCHES_THRESHOLD_MIN)
+    {
+        sw_dwn_cntr -= SWITCHES_THRESHOLD_MIN;
+        sw = SW_MIN;
+        sw_dwn_cont_cntr++;
+    }
+
+    return sw;    
+}
+
+
+resp_sw_t Check_SW_SEL (void)
+{
+    resp_sw_t sw = SW_NO;
     
-    if (ALARM_INPUT)
+    if (sw_sel_cntr > SWITCHES_THRESHOLD_FULL)
+        sw = SW_FULL;
+    else if (sw_sel_cntr > SWITCHES_THRESHOLD_HALF)
+        sw = SW_HALF;
+    else if (sw_sel_cntr > SWITCHES_THRESHOLD_MIN)
     {
-        if (s_alarm_input_cntr < SWITCHES_ROOF)
-            s_alarm_input_cntr++;
+        // sw_sel_cntr -= SWITCHES_THRESHOLD_MIN;
+        sw = SW_MIN;
     }
-    else if (s_alarm_input_cntr)
+
+    return sw;    
+}
+
+
+void UpdateSwitches (void)
+{
+    if (!switches_timer)
     {
-        if (s_alarm_input_cntr > 10)
-            s_alarm_input_cntr -= 5;
+        if (SW_UP)
+            sw_up_cntr++;
+        else if (sw_up_cntr > 50)
+            sw_up_cntr -= 50;
+        else if (sw_up_cntr > 10)
+            sw_up_cntr -= 5;
+        else if (sw_up_cntr)
+            sw_up_cntr--;
         else
-            s_alarm_input_cntr--;
-    }
+            sw_up_cont_cntr = 0;
+
+        if (SW_DWN)
+            sw_dwn_cntr++;
+        else if (sw_dwn_cntr > 50)
+            sw_dwn_cntr -= 50;
+        else if (sw_dwn_cntr > 10)
+            sw_dwn_cntr -= 5;
+        else if (sw_dwn_cntr)
+            sw_dwn_cntr--;
+        else
+            sw_dwn_cont_cntr = 0;
+
+        if (SW_SEL)
+            sw_sel_cntr++;
+        else if (sw_sel_cntr > 50)
+            sw_sel_cntr -= 50;
+        else if (sw_sel_cntr > 10)
+            sw_sel_cntr -= 5;
+        else if (sw_sel_cntr)
+            sw_sel_cntr--;
+        
+        switches_timer = SWITCHES_TIMER_RELOAD;
+    }       
 }
 
 
-
-unsigned char Check_Alarm_Input (void)
+sw_actions_t CheckActions (void)
 {
-    if (s_alarm_input_cntr > SWITCHES_THRESHOLD_MIN)
-        return 1;
-    else
-        return 0;
+    sw_actions_t sw = selection_none;
+    
+    if (Check_SW_UP () > SW_NO)
+        sw = selection_up;
+
+    if (Check_SW_DWN () > SW_NO)
+        sw = selection_dwn;
+
+    resp_sw_t s_sel = SW_NO;
+    s_sel = Check_SW_SEL ();
+    
+    if (s_sel > SW_HALF)
+        sw = selection_back;
+    else if (s_sel > SW_NO)
+        sw = selection_enter;
+    
+    return sw;
+    
 }
 
 
-void Led_Off (void)
-{
-    LED_OFF;
-}
-
-
-void Led_On (void)
-{
-    LED_ON;
-}
-
-
-unsigned char Led_Status (void)
-{
-    return LED;
-}
-
-
-void PwrKey_Off (void)
-{
-    PWRKEY_OFF;
-}
-
-
-void PwrKey_On (void)
-{
-    PWRKEY_ON;
-}
-
-
-void Activation_12V_On (void)
-{
-    ACT_12V_ON;
-}
-
-
-void Activation_12V_Off (void)
-{
-    ACT_12V_OFF;
-}
-
-
-unsigned char PwrKey_Status (void)
-{
-    return PWRKEY;
-}
-
-
-unsigned char Status_Status (void)
-{
-#if (defined HARDWARE_VER_2_0) || (defined HARDWARE_VER_2_1)
-    return 1;
+#if defined HARDWARE_VERSION_2_0
+char hardware_version [] = {"Hardware: 2.0   "};
 #else
-    return STATUS;
+#error "No hard version selected on hard.c"
 #endif
+char * HARD_GetHardwareVersion (void)
+{
+    return hardware_version;
 }
 
-
-unsigned char NetLight_Status (void)
-{
-#if (defined HARDWARE_VER_2_0) || (defined HARDWARE_VER_2_1)
-    return 1;
+#if defined FIRMWARE_VERSION_2_0
+char software_version [] = {"Firmware: 2.0   "};
 #else
-    return NETLIGHT;
+#error "No soft version selected on hard.c"
 #endif
+
+char * HARD_GetSoftwareVersion (void)
+{
+    return software_version;
 }
 
 
