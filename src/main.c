@@ -29,6 +29,7 @@
 
 #include "test_functions.h"
 #include "lcd_utils.h"
+#include "dmx_receiver.h"
 
 
 // Externals -------------------------------------------------------------------
@@ -38,6 +39,13 @@ volatile unsigned short adc_ch [ADC_CHANNEL_QUANTITY];
 // - Externals de la Memoria y los modos -------
 parameters_typedef * pmem = (parameters_typedef *) (unsigned int *) FLASH_ADDRESS_FOR_BKP;	//en flash
 parameters_typedef mem_conf;
+
+// - Externals for DMX receiver
+volatile unsigned char dmx_buff_data[SIZEOF_DMX_BUFFER_DATA];
+volatile unsigned char Packet_Detected_Flag = 0;
+volatile unsigned short DMX_channel_selected = 0;
+volatile unsigned char DMX_channel_quantity = 0;
+volatile unsigned char dmx_receive_flag = 0;
 
 
 // Globals ---------------------------------------------------------------------
@@ -519,6 +527,14 @@ int main(void)
 // }
 
 
+void EXTI4_15_IRQHandler(void)
+{
+    DMX_Int_Break_Handler();
+    EXTI->RPR1 |= 0x00000100;    //PA8 on rising
+    EXTI->FPR1 |= 0x00000100;    //PA8 on falling
+}
+
+
 void TimingDelay_Decrement(void)
 {
     TIM_Timeouts ();
@@ -533,6 +549,7 @@ void TimingDelay_Decrement(void)
 
     LCD_UpdateTimer ();
     HARD_Timeouts();
+    DMX_Int_Millis_Handler ();
     
     // if (mins_millis < 60000)
     //     mins_millis++;

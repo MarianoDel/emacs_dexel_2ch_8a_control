@@ -14,6 +14,7 @@
 
 #include <string.h>
 
+#include "dmx_receiver.h"
 
 // Module Private Types Constants and Macros -----------------------------------
 #define USART1_CLK    (RCC->APBENR2 & 0x00004000)
@@ -26,18 +27,20 @@
 
 #define USART_64MHz_9600    6666
 #define USART_64MHz_115200    555
+#define USART_64MHz_250000    256
 #define USART_16MHz_9600    1666
 #define USART_115200    416
 #define USART_250000    192
 
+#define USART_IN_DMX_MODE    0
+#define USART_IN_MANUAL_MODE    1
 
 
 // Externals -------------------------------------------------------------------
-extern volatile char comm_from_panel_local_buffer [];
+
 
 // Globals ---------------------------------------------------------------------
 volatile unsigned char usart1_have_data = 0;
-volatile unsigned char usart1_mini_timeout = 0;
 volatile unsigned char * ptx1;
 volatile unsigned char * ptx1_pckt_index;
 volatile unsigned char * prx1;
@@ -45,14 +48,14 @@ volatile unsigned char tx1buff[SIZEOF_DATA];
 volatile unsigned char rx1buff[SIZEOF_DATA];
 
 volatile unsigned char usart2_have_data = 0;
-volatile unsigned char usart2_have_activation_buffer = 0;
 volatile unsigned char * ptx2;
 volatile unsigned char * ptx2_pckt_index;
 volatile unsigned char * prx2;
 volatile unsigned char tx2buff[SIZEOF_DATA];
 volatile unsigned char rx2buff[SIZEOF_DATA];
 
-unsigned char usart_debug_level = 0;
+volatile unsigned char usart1_mode = USART_IN_DMX_MODE;
+// unsigned char usart_debug_level = 0;
 
 // Module Private Functions ----------------------------------------------------
 
@@ -95,31 +98,51 @@ void Usart1Config(void)
 }
 
 
-void Usart1Config_115200 (void)
+void Usart1Enable_PA10_250000 (void)
 {
-    if (!USART1_CLK)
-        USART1_CLK_ON;
-
-    // Usart1 9600 8N1 fifo disabled oversampled 16
-    USART1->BRR = USART_64MHz_115200;
-
-    // USART1->CR2 |= USART_CR2_STOP_1;	//2 bits stop
-    // USART1->CR1 = USART_CR1_RE | USART_CR1_TE | USART_CR1_UE;
-    // USART1->CR1 = USART_CR1_RXNEIE | USART_CR1_RE | USART_CR1_UE;	//SIN TX
-    USART1->CR1 = USART_CR1_RXNEIE_RXFNEIE | USART_CR1_RE | USART_CR1_TE | USART_CR1_UE;    //Rx int + Tx
+    usart1_mode = USART_IN_DMX_MODE;
+    
+    USART1->CR1 &= ~(USART_CR1_UE);    //disable
+    USART1->BRR = USART_64MHz_250000;
+    USART1->CR2 |= USART_CR2_STOP_1;	//2 bits stop
 
     unsigned int temp;
-    temp = GPIOA->AFR[1];
-    temp &= 0xFFFFF00F;
-    temp |= 0x00000110;    //PA10 -> AF1 PA9 -> AF1
-    GPIOA->AFR[1] = temp;
+    temp = GPIOA->MODER;    //2 bits por pin
+    temp &= 0xFFCFFFFF;    //PA10 alternative
+    temp |= 0x00200000;    //
+    GPIOA->MODER = temp;
 
-    ptx1 = tx1buff;
-    ptx1_pckt_index = tx1buff;
-    prx1 = rx1buff;
+    temp = GPIOB->MODER;    //2 bits por pin
+    temp &= 0xFFFF3FFF;    //PB7 input
+    temp |= 0x00000000;    //
+    GPIOB->MODER = temp;
+
+    USART1->CR1 = USART_CR1_RXNEIE_RXFNEIE | USART_CR1_RE | USART_CR1_UE;	//no TX
     
-    NVIC_EnableIRQ(USART1_IRQn);
-    NVIC_SetPriority(USART1_IRQn, 5);
+}
+
+
+void Usart1Enable_PB7_9600 (void)
+{
+    usart1_mode = USART_IN_MANUAL_MODE;
+    
+    USART1->CR1 &= ~(USART_CR1_UE);    //disable
+    USART1->BRR = USART_64MHz_9600;
+    USART1->CR2 &= ~(USART_CR2_STOP_1);	//1 bits stop
+
+    unsigned int temp;
+    temp = GPIOB->MODER;    //2 bits por pin
+    temp &= 0xFFFF3FFF;    //PB7 alternative
+    temp |= 0x00008000;    //
+    GPIOB->MODER = temp;
+
+    temp = GPIOA->MODER;    //2 bits por pin
+    temp &= 0xFFCFFFFF;    //PA10 input
+    temp |= 0x00000000;    //
+    GPIOA->MODER = temp;
+
+    USART1->CR1 = USART_CR1_RXNEIE_RXFNEIE | USART_CR1_RE | USART_CR1_UE;	//no TX
+    
 }
 
 
@@ -183,17 +206,26 @@ void USART1_IRQHandler(void)
     {
         dummy = USART1->RDR & 0x0FF;
 
-        //RX del GSM
-        if (prx1 < &rx1buff[SIZEOF_DATA - 1])
+        if (usart1_mode == USART_IN_DMX_MODE)
+            DMX_Int_Serial_Receiver_Handler (dummy);
+        else if (usart1_mode == USART_IN_MANUAL_MODE)
         {
-            *prx1 = dummy;
-            prx1++;
-            usart1_have_data = 1;
+            if (prx1 < &rx1buff[SIZEOF_DATA - 1])
+            {
+                if (dummy == '\n')
+                {
+                    *prx1 = '\0';
+                    usart1_have_data = 1;
+                }
+                else
+                {
+                    *prx1 = dummy;
+                    prx1++;
+                }
+            }
+            else
+                prx1 = rx1buff;    // fixes blocked with garbage problem
         }
-        else
-            prx1 = rx1buff;    //soluciona problema bloqueo con garbage
-
-        usart1_mini_timeout = TT_GSM_MINI;
     }
 
     // USART in Tx mode --------------------------------------------------
@@ -225,12 +257,7 @@ void USART1_IRQHandler(void)
 
 unsigned char Usart1HaveData (void)
 {
-    unsigned char answer = 0;
-    
-    if ((usart1_have_data) && (!usart1_mini_timeout))
-        answer = 1;
-
-    return answer;
+    return usart1_have_data;
 }
 
 
@@ -238,6 +265,34 @@ void Usart1HaveDataReset (void)
 {
     usart1_have_data = 0;
 }
+
+
+// void Usart1Config_115200 (void)
+// {
+//     if (!USART1_CLK)
+//         USART1_CLK_ON;
+
+//     // Usart1 9600 8N1 fifo disabled oversampled 16
+//     USART1->BRR = USART_64MHz_115200;
+
+//     // USART1->CR2 |= USART_CR2_STOP_1;	//2 bits stop
+//     // USART1->CR1 = USART_CR1_RE | USART_CR1_TE | USART_CR1_UE;
+//     // USART1->CR1 = USART_CR1_RXNEIE | USART_CR1_RE | USART_CR1_UE;	//SIN TX
+//     USART1->CR1 = USART_CR1_RXNEIE_RXFNEIE | USART_CR1_RE | USART_CR1_TE | USART_CR1_UE;    //Rx int + Tx
+
+//     unsigned int temp;
+//     temp = GPIOA->AFR[1];
+//     temp &= 0xFFFFF00F;
+//     temp |= 0x00000110;    //PA10 -> AF1 PA9 -> AF1
+//     GPIOA->AFR[1] = temp;
+
+//     ptx1 = tx1buff;
+//     ptx1_pckt_index = tx1buff;
+//     prx1 = rx1buff;
+    
+//     NVIC_EnableIRQ(USART1_IRQn);
+//     NVIC_SetPriority(USART1_IRQn, 5);
+// }
 
 
 //////////////////////
@@ -280,25 +335,6 @@ void Usart2Config(void)
 void Usart2SendSingle (unsigned char b)
 {
     USART2->TDR = b;    
-}
-
-
-void Usart2Debug (char * send, unsigned char debug_level)
-{
-    if (usart_debug_level >= debug_level)
-        Usart2Send (send);
-}
-
-
-void UsartDebugLevel_Set(unsigned char debug_level)
-{
-    usart_debug_level = debug_level;
-}
-
-
-unsigned char  UsartDebugLevel_Get(void)
-{
-    return usart_debug_level;
 }
 
 
@@ -366,26 +402,26 @@ void USART2_IRQHandler(void)
             }
             else if ((dummy == '\n') || (dummy == 26))    //CTRL+J ("\r\n"); CTRL-Z (26)
             {
-                if (dummy == 26)    //special case
-                {
-                    *prx2 = dummy;
-                    prx2++;
-                    *prx2 = '\0';
-                    usart2_have_data = 1;
-                }
-                else
-                {
-                    *prx2 = '\0';
-                    if ((prx2 - rx2buff) == 14)
-                    {
-                        memcpy((char *) comm_from_panel_local_buffer, (char *) rx2buff, 14);
-                        prx2 = rx2buff;    // pointer adjust after copy or flush
-                        usart2_have_activation_buffer = 1;
-                        // Usart2SendUnsigned("new data\n", sizeof("new data\n") - 1);
-                    }
-                    else
-                        usart2_have_data = 1;
-                }
+                // if (dummy == 26)    //special case
+                // {
+                //     *prx2 = dummy;
+                //     prx2++;
+                //     *prx2 = '\0';
+                //     usart2_have_data = 1;
+                // }
+                // else
+                // {
+                //     *prx2 = '\0';
+                //     if ((prx2 - rx2buff) == 14)
+                //     {
+                //         memcpy((char *) comm_from_panel_local_buffer, (char *) rx2buff, 14);
+                //         prx2 = rx2buff;    // pointer adjust after copy or flush
+                //         usart2_have_activation_buffer = 1;
+                //         // Usart2SendUnsigned("new data\n", sizeof("new data\n") - 1);
+                //     }
+                //     else
+                //         usart2_have_data = 1;
+                // }
             }
             else
             {
@@ -434,25 +470,6 @@ unsigned char Usart2HaveData (void)
 void Usart2HaveDataReset (void)
 {
     usart2_have_data = 0;
-}
-
-
-unsigned char Usart2HaveActivationBuffer (void)
-{
-    return usart2_have_activation_buffer;
-}
-
-
-void Usart2HaveActivationBufferReset (void)
-{
-    usart2_have_activation_buffer = 0;
-}
-
-
-void USART_Timeouts (void)
-{
-    if (usart1_mini_timeout)
-        usart1_mini_timeout--;
 }
 
 

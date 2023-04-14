@@ -19,7 +19,7 @@
 #define GPIOB_ENABLE
 #define GPIOC_ENABLE
 
-// #define WITH_EXTI
+#define WITH_EXTI
 
 // - Ports Clocks
 #define GPIOA_CLK    (RCC->IOPENR & 0x00000001)

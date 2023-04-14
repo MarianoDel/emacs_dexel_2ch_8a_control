@@ -165,33 +165,13 @@ void TIM14_IRQHandler (void)	//100uS
 
 void TIM_14_Init (void)
 {
-
-    //NVIC_InitTypeDef NVIC_InitStructure;
-
     if (!RCC_TIM14_CLK)
         RCC_TIM14_CLK_ON;
 
-    /*
-    //Configuracion del timer.
-    TIM14->ARR = 2000; //10m
-    TIM14->CNT = 0;
-    TIM14->PSC = 479;
-    TIM14->EGR = TIM_EGR_UG;
-
-    // Enable timer ver UDIS
-    TIM14->DIER |= TIM_DIER_UIE;
-    TIM14->CR1 |= TIM_CR1_CEN;
-
-    NVIC_InitStructure.NVIC_IRQChannel = TIM14_IRQn;
-    NVIC_InitStructure.NVIC_IRQChannelPriority = 5;
-    NVIC_InitStructure.NVIC_IRQChannelCmd = ENABLE;
-    NVIC_Init(&NVIC_InitStructure);
-    */
-
-    //Configuracion del timer.
-    TIM14->CR1 = 0x00;		//clk int / 1; upcounting; uev
-    TIM14->PSC = 47;			//tick cada 1us
-    TIM14->ARR = 0xFFFF;			//para que arranque
+    // Timer Config.
+    TIM14->CR1 = 0x00;    // clk int / 1; upcounting;
+    TIM14->PSC = 63;    // tick 1us
+    TIM14->ARR = 0xFFFF;    // for start, free running
     TIM14->EGR |= 0x0001;
 }
 

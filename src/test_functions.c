@@ -20,6 +20,7 @@
 #include "flash_program.h"
 
 #include "lcd_utils.h"
+#include "dmx_receiver.h"
 
 
 
@@ -29,11 +30,17 @@
 
 
 // Externals -------------------------------------------------------------------
-extern volatile unsigned char usart1_have_data;
-extern volatile unsigned char usart2_have_data;
-extern volatile unsigned char adc_int_seq_ready;
-extern volatile unsigned short adc_ch [];
-extern volatile unsigned char adc_int_seq_ready;
+// extern volatile unsigned char usart1_have_data;
+// extern volatile unsigned char usart2_have_data;
+// extern volatile unsigned char adc_int_seq_ready;
+// extern volatile unsigned short adc_ch [];
+// extern volatile unsigned char adc_int_seq_ready;
+
+// - for DMX receiver
+extern volatile unsigned char Packet_Detected_Flag;
+extern volatile unsigned short DMX_channel_selected;
+extern volatile unsigned char DMX_channel_quantity;
+extern volatile unsigned char dmx_receive_flag;
 
 // Globals ---------------------------------------------------------------------
 
@@ -54,6 +61,7 @@ void TF_lcdData (void);
 void TF_lcdBlink (void);
 void TF_lcdScroll (void);
 void TF_MenuFunction (void);
+void TF_Dmx_Break_Detect (void);
 void TF_Dmx_Packet (void);
 void TF_Dmx_Packet_Data (void);
 void TF_Temp_Channel (void);
@@ -71,8 +79,9 @@ void TF_Hardware_Tests (void)
     // TF_lcdBklight();    
     // TF_lcdData();
     // TF_lcdBlink();
-    TF_lcdScroll();
-    // TF_Dmx_Packet ();
+    // TF_lcdScroll();
+    // TF_Dmx_Break_Detect ();
+    TF_Dmx_Packet ();    
     // TF_Dmx_Packet_Data ();
     // TF_Temp_Channel ();    
     
@@ -267,25 +276,47 @@ void TF_lcdScroll (void)
 }
 
 
-// void TF_Dmx_Packet (void)
-// {
-//     Usart1Config();
-//     TIM_14_Init();
-//     DMX_channel_selected = 1;
-//     DMX_channel_quantity = 2;
-//     DMX_EnableRx();
+void TF_Dmx_Break_Detect (void)
+{
+    // needs a timeout call to DMX_Int_Millis_Handler ()
+    TIM_14_Init();
+    DMX_channel_selected = 1;
+    DMX_channel_quantity = 2;
+    DMX_EnableRx();
 
-//     while (1)
-//     {
-//         if (Packet_Detected_Flag)
-//         {
-//             Packet_Detected_Flag = 0;
-//             LED_ON;
-//             Wait_ms(2);
-//             LED_OFF;
-//         }
-//     }
-// }
+    while (1)
+    {
+        if (dmx_receive_flag)
+        {
+            dmx_receive_flag = 0;
+            LED_ON;
+            Wait_ms(10);
+            LED_OFF;
+        }
+    }
+}
+
+
+void TF_Dmx_Packet (void)
+{
+    // needs a timeout call to DMX_Int_Millis_Handler ()
+    Usart1Config();
+    TIM_14_Init();
+    DMX_channel_selected = 1;
+    DMX_channel_quantity = 2;
+    DMX_EnableRx();
+
+    while (1)
+    {
+        if (Packet_Detected_Flag)
+        {
+            Packet_Detected_Flag = 0;
+            LED_ON;
+            Wait_ms(2);
+            LED_OFF;
+        }
+    }
+}
 
 
 // void TF_Dmx_Packet_Data (void)
