@@ -83,8 +83,8 @@ SRC += ./src/flash_program.c
 SRC += ./src/hard.c
 SRC += ./src/test_functions.c
 
-# SRC += ./src/lcd.c
-# SRC += ./src/lcd_utils.c
+SRC += ./src/lcd.c
+SRC += ./src/lcd_utils.c
 # SRC += ./src/menues.c
 # SRC += ./src/dmx_receiver.c
 # SRC += ./src/dmx_mode.c

@@ -28,6 +28,7 @@
 #include "flash_program.h"
 
 #include "test_functions.h"
+#include "lcd_utils.h"
 
 
 // Externals -------------------------------------------------------------------
@@ -525,11 +526,12 @@ void TimingDelay_Decrement(void)
     if (timer_standby)
         timer_standby--;
 
-    if (timer_prender_ringing)
-        timer_prender_ringing--;
+    // if (timer_prender_ringing)
+    //     timer_prender_ringing--;
 
     // USART_Timeouts();
 
+    LCD_UpdateTimer ();
     HARD_Timeouts();
     
     // if (mins_millis < 60000)

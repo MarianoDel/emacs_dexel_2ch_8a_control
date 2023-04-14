@@ -19,6 +19,8 @@
 #include "tim.h"
 #include "flash_program.h"
 
+#include "lcd_utils.h"
+
 
 
 #include <stdio.h>
@@ -40,8 +42,8 @@ extern volatile unsigned char adc_int_seq_ready;
 
 
 // Module Private Functions ----------------------------------------------------
+void TF_Led_Lock (void);
 void TF_Led (void);
-void TF_ENA_CH1_ENA_CH2_SW_SEL (void);
 void TF_SW_UP (void);
 void TF_SW_DWN (void);
 void TF_SW_SEL (void);
@@ -60,16 +62,16 @@ void TF_Temp_Channel (void);
 // Module Functions ------------------------------------------------------------
 void TF_Hardware_Tests (void)
 {
-    TF_Led();    //simple led functionality
+    // TF_Led ();    //simple led functionality
     // TF_SW_UP();
     // TF_SW_DWN();
     // TF_SW_SEL();    
     // TF_lcdE();
     // TF_lcdRS();
+    // TF_lcdBklight();    
     // TF_lcdData();
-    // TF_lcdBklight();
     // TF_lcdBlink();
-    // TF_lcdScroll();
+    TF_lcdScroll();
     // TF_Dmx_Packet ();
     // TF_Dmx_Packet_Data ();
     // TF_Temp_Channel ();    
@@ -173,70 +175,96 @@ void TF_lcdData (void)
 {
     while (1)
     {
-        //pa0 a pa3
-        LED_ON;
-        GPIOA->BSRR = 0x0000000F;
+        //pa4 a pa7        
+        GPIOA->BSRR = 0x000000F0;
+        for (int i = 0; i < 5; i++)
+        {
+            LED_ON;
+            Wait_ms(100);
+            LED_OFF;
+            Wait_ms(1400);
+        }        
+        GPIOA->BSRR = 0x00F00000;
+
         Wait_ms(2000);
+
+        GPIOA->BSRR = 0x00000050;
+        for (int i = 0; i < 5; i++)
+        {
+            LED_ON;
+            Wait_ms(100);
+            LED_OFF;
+            Wait_ms(100);            
+            LED_ON;
+            Wait_ms(100);
+            LED_OFF;
+            Wait_ms(1200);
+        }        
+        GPIOA->BSRR = 0x00500000;
         
-        LED_OFF;
-        GPIOA->BSRR = 0x000F0000;
         Wait_ms(2000);
 
-        LED_ON;
-        GPIOA->BSRR = 0x00000005;
-        Wait_ms(2000);
-
-        LED_OFF;
-        GPIOA->BSRR = 0x00050000;
-        Wait_ms(2000);
-
-        LED_ON;
-        GPIOA->BSRR = 0x0000000A;
-        Wait_ms(2000);
-
-        LED_OFF;
-        GPIOA->BSRR = 0x000A0000;
+        GPIOA->BSRR = 0x000000A0;
+        for (int i = 0; i < 5; i++)
+        {
+            LED_ON;
+            Wait_ms(100);
+            LED_OFF;
+            Wait_ms(100);            
+            LED_ON;
+            Wait_ms(100);
+            LED_OFF;
+            Wait_ms(100);            
+            LED_ON;
+            Wait_ms(100);
+            LED_OFF;
+            Wait_ms(1000);
+        }
+        GPIOA->BSRR = 0x00A00000;
+        
         Wait_ms(2000);
     }
 }
 
 
-// void TF_lcdBlink (void)
-// {
-//     LCD_UtilsInit();
-//     CTRL_BKL_ON;
+void TF_lcdBlink (void)
+{
+    // needs a timeout call to LCD_UpdateTimer()
+    LCD_UtilsInit();
+    CTRL_BKL_ON;
 
-//     while (1)
-//     {
-//         while (LCD_ShowBlink("Kirno Technology",
-//                              "  Smart Driver  ",
-//                              2,
-//                              BLINK_DIRECT) != resp_finish);
+    while (1)
+    {
+        while (LCD_ShowBlink("Kirno Technology",
+                             "  Smart Driver  ",
+                             2,
+                             BLINK_DIRECT) != resp_finish);
 
-//         LCD_ClearScreen();
-//         Wait_ms(1000);
-//     }
-// }
+        LCD_ClearScreen();
+        Wait_ms(1000);
+    }
+}
 
 
-// void TF_lcdScroll (void)
-// {
-//     resp_t resp = resp_continue;
+void TF_lcdScroll (void)
+{
+   // needs a timeout call to LCD_UpdateTimer()
+    resp_t resp = resp_continue;
 
-//     LCD_UtilsInit();
-//     CTRL_BKL_ON;
+    LCD_UtilsInit();
+    CTRL_BKL_ON;
     
-//     while (1)
-//     {
-//         // LCD_ClearScreen();
-//         // Wait_ms(2000);
-//         do {
-//             resp = LCD_Scroll1 ("Dexel Lighting DMX 2 channels 8 amps controller.");
-//         } while (resp != resp_finish);
+    while (1)
+    {
+        // LCD_ClearScreen();
+        // Wait_ms(2000);
+        do {
+            resp = LCD_Scroll1 ("Dexel Lighting DMX 2 channels 8 amps controller.");
+        } while (resp != resp_finish);
 
-//         Wait_ms(2000);
-//     }
-// }
+        Wait_ms(2000);
+    }
+}
 
 
 // void TF_Dmx_Packet (void)
