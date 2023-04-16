@@ -26,6 +26,13 @@
 #define CLOCK_FREQ_64_MHZ    //ojo modificar a mano system_stm32g0xx.c SystemInit
 // #define CLOCK_FREQ_16_MHZ    //ojo modificar a mano system_stm32g0xx.c SystemInit
 
+//---- Features Configuration --------------------
+#define USE_TEMP_PROT
+
+// #define USE_CTROL_FAN_ALWAYS_ON    //fan always
+
+//---- End of Features Configuration -------------
+
 //-------- End Of Defines For Configuration ------
 
 

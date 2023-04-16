@@ -21,7 +21,7 @@
 
 #include "lcd_utils.h"
 #include "dmx_receiver.h"
-
+#include "temperatures.h"
 
 
 #include <stdio.h>
@@ -30,17 +30,16 @@
 
 
 // Externals -------------------------------------------------------------------
-// extern volatile unsigned char usart1_have_data;
-// extern volatile unsigned char usart2_have_data;
-// extern volatile unsigned char adc_int_seq_ready;
-// extern volatile unsigned short adc_ch [];
-// extern volatile unsigned char adc_int_seq_ready;
 
 // - for DMX receiver
+extern volatile unsigned char dmx_buff_data[];
 extern volatile unsigned char Packet_Detected_Flag;
 extern volatile unsigned short DMX_channel_selected;
 extern volatile unsigned char DMX_channel_quantity;
 extern volatile unsigned char dmx_receive_flag;
+
+// - for ADC
+extern volatile unsigned short adc_ch [];
 
 // Globals ---------------------------------------------------------------------
 
@@ -81,9 +80,9 @@ void TF_Hardware_Tests (void)
     // TF_lcdBlink();
     // TF_lcdScroll();
     // TF_Dmx_Break_Detect ();
-    TF_Dmx_Packet ();    
+    // TF_Dmx_Packet ();    
     // TF_Dmx_Packet_Data ();
-    // TF_Temp_Channel ();    
+    TF_Temp_Channel ();    
     
 }
 
@@ -319,91 +318,90 @@ void TF_Dmx_Packet (void)
 }
 
 
-// void TF_Dmx_Packet_Data (void)
-// {
-//     // Init LCD
-//     LCD_UtilsInit();
-//     CTRL_BKL_ON;
-//     LCD_ClearScreen();
-//     Wait_ms(1000);
+void TF_Dmx_Packet_Data (void)
+{
+    // Init LCD
+    LCD_UtilsInit();
+    CTRL_BKL_ON;
+    LCD_ClearScreen();
+    Wait_ms(1000);
 
-//     // Init DMX
-//     Usart1Config();
-//     TIM_14_Init();
-//     DMX_channel_selected = 1;
-//     DMX_channel_quantity = 2;
-//     DMX_EnableRx();
+    // Init DMX
+    Usart1Config();
+    TIM_14_Init();
+    DMX_channel_selected = 1;
+    DMX_channel_quantity = 2;
+    DMX_EnableRx();
 
-//     unsigned char dmx_data1 = 0;
-//     unsigned char dmx_data2 = 0;    
+    unsigned char dmx_data1 = 0;
+    unsigned char dmx_data2 = 0;    
 
-//     while (1)
-//     {
-//         if (Packet_Detected_Flag)
-//         {
-//             Packet_Detected_Flag = 0;
-//             LED_ON;
+    while (1)
+    {
+        if (Packet_Detected_Flag)
+        {
+            Packet_Detected_Flag = 0;
+            LED_ON;
 
-//             if (dmx_buff_data[0] == 0)
-//             {
-//                 char s_lcd [20] = { 0 };
+            if (dmx_buff_data[0] == 0)
+            {
+                char s_lcd [20] = { 0 };
 
-//                 if (dmx_data1 != dmx_buff_data[1])
-//                 {
-//                     sprintf(s_lcd, "ch1: %03d", dmx_buff_data[1]);
-//                     LCD_Writel1(s_lcd);
-//                     dmx_data1 = dmx_buff_data[1];
-//                 }
+                if (dmx_data1 != dmx_buff_data[1])
+                {
+                    sprintf(s_lcd, "ch1: %03d", dmx_buff_data[1]);
+                    LCD_Writel1(s_lcd);
+                    dmx_data1 = dmx_buff_data[1];
+                }
 
-//                 if (dmx_data2 != dmx_buff_data[2])
-//                 {
-//                     sprintf(s_lcd, "ch2: %03d", dmx_buff_data[2]);
-//                     LCD_Writel2(s_lcd);
-//                     dmx_data2 = dmx_buff_data[2];
-//                 }
-//             }
+                if (dmx_data2 != dmx_buff_data[2])
+                {
+                    sprintf(s_lcd, "ch2: %03d", dmx_buff_data[2]);
+                    LCD_Writel2(s_lcd);
+                    dmx_data2 = dmx_buff_data[2];
+                }
+            }
             
-//             LED_OFF;
-//         }
-//     }
-// }
+            LED_OFF;
+        }
+    }
+}
 
 
-// void TF_Temp_Channel (void)
-// {
-//     // Init LCD
-//     LCD_UtilsInit();
-//     CTRL_BKL_ON;
-//     LCD_ClearScreen();
-//     Wait_ms(1000);
+void TF_Temp_Channel (void)
+{
+    // Init LCD
+    LCD_UtilsInit();
+    CTRL_BKL_ON;
+    LCD_ClearScreen();
+    Wait_ms(1000);
 
-//     // Init Tim
-//     TIM_3_Init();
-
-//     // Init ADC and DMA
-//     AdcConfig();
-//     DMAConfig();
-//     DMA1_Channel1->CCR |= DMA_CCR_EN;
-//     ADC1->CR |= ADC_CR_ADSTART;
+    // Init ADC and DMA
+    AdcConfig();
+    DMAConfig();
+    DMA1_Channel1->CCR |= DMA_CCR_EN;
+    ADC1->CR |= ADC_CR_ADSTART;
     
-//     char s_lcd [30] = { 0 };
-//     unsigned char temp_degrees = 0;
-//     while (1)
-//     {
-//         Wait_ms (500);
-//         temp_degrees = Temp_TempToDegrees(Temp_Channel);
+    char s_lcd [30] = { 0 };
+    unsigned char temp_degrees = 0;
+    while (1)
+    {
+        Wait_ms (500);
+        LCD_ClearScreen ();
         
-//         sprintf(s_lcd, "Ch: %04d T: %d",
-//                 Temp_Channel,
-//                 temp_degrees);
+        temp_degrees = Temp_TempToDegrees(Temp_Channel);
+        
+        sprintf(s_lcd, "Ch: %04d T: %d",
+                Temp_Channel,
+                temp_degrees);
 
-//         LCD_Writel1(s_lcd);
+        LCD_Writel1(s_lcd);
 
-//         sprintf(s_lcd, "convert: %04d",
-//                 Temp_DegreesToTemp(temp_degrees));
+        sprintf(s_lcd, "convert: %04d",
+                Temp_DegreesToTemp(temp_degrees));
 
-//         LCD_Writel2(s_lcd);
-//     }
-// }
+        LCD_Writel2(s_lcd);
+    }
+}
 
 //--- end of file ---//

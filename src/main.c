@@ -30,14 +30,40 @@
 #include "test_functions.h"
 #include "lcd_utils.h"
 #include "dmx_receiver.h"
+#include "temperatures.h"
 
+#include "dmx_mode.h"
+#include "manual_mode.h"
+#include "menues.h"
+#include "comms_power.h"
+
+
+// Module Types Constants and Macros -------------------------------------------
+typedef enum {
+    MAIN_INIT,
+    MAIN_HARD_INIT,
+    MAIN_CHECK_CONF,
+    MAIN_DMX_MODE_INIT,
+    MAIN_MANUAL_MODE_INIT,
+    MAIN_IN_DMX_MODE,
+    MAIN_IN_MANUAL_MODE,
+    MAIN_IN_OVERTEMP,
+    MAIN_IN_OVERCURRENT,
+    MAIN_ENTERING_MAIN_MENU,
+    MAIN_ENTERING_MAIN_MENU2,    
+    MAIN_IN_MAIN_MENU
+    
+} main_state_e;
 
 // Externals -------------------------------------------------------------------
+// - extern from lcd
+extern char s_blank [];
+
 // - Externals from ADC Converter -------
 volatile unsigned short adc_ch [ADC_CHANNEL_QUANTITY];
 
 // - Externals de la Memoria y los modos -------
-parameters_typedef * pmem = (parameters_typedef *) (unsigned int *) FLASH_ADDRESS_FOR_BKP;	//en flash
+parameters_typedef * pflash_mem = (parameters_typedef *) (unsigned int *) FLASH_ADDRESS_FOR_BKP;    //en flash
 parameters_typedef mem_conf;
 
 // - Externals for DMX receiver
@@ -47,12 +73,20 @@ volatile unsigned short DMX_channel_selected = 0;
 volatile unsigned char DMX_channel_quantity = 0;
 volatile unsigned char dmx_receive_flag = 0;
 
+// - Externals shared by modes
+unsigned char mode_state;
+volatile unsigned short mode_effect_timer;
 
 // Globals ---------------------------------------------------------------------
 // - Globals from timers -------
 volatile unsigned short timer_standby = 0;
-volatile unsigned short timer_prender_ringing = 0;
-volatile unsigned short mins_millis = 0;
+volatile unsigned short need_to_save_timer = 0;
+
+// -- for the timeouts in the modes ----
+void (* ptFTT ) (void) = NULL;
+
+// -- for the memory -------------------
+unsigned char need_to_save = 0;
 
 
 // Module Private Functions ----------------------------------------------------
@@ -60,7 +94,15 @@ void TimingDelay_Decrement(void);
 void ConfigurationChange (void);
 void SysTickError (void);
 
+// mocked functions to migrate -------------------------------------------------
+void PWMChannelsReset (void);
+void FiltersAndOffsets_Filters_Reset (void);
 
+// mocked defines to migrate ---------------------------------------------------
+#define I_SEL_ON    asm ("nop \n\t")
+#define I_SEL_OFF    asm ("nop \n\t")
+
+ 
 //-------------------------------------------//
 // @brief  Main program.
 // @param  None
@@ -82,422 +124,377 @@ int main(void)
 #endif
 
     //--- Funciones de Test Hardware ---
-    TF_Hardware_Tests ();
-    
+    // TF_Hardware_Tests ();    
     //--- Fin Funciones de Test Hardware ---    
 
     
     //--- Welcome code ---//
-//     LED_OFF;
-//     ACT_12V_OFF;
+    // Usart and Timer for DMX
+    Usart1Config ();
+    TIM_14_Init ();
+    DMX_DisableRx ();
 
-//     Usart1Config();
-//     Usart2Config();
-
-//     EXTIOff();
-
-//     // Set default debug level for messages
-//     UsartDebugLevel_Set(DEFAULT_DEBUG_LVL);
+    // ADC & DMA for temp sense
+    AdcConfig();
+    DMAConfig();
+    DMA1_Channel1->CCR |= DMA_CCR_EN;
+    ADC1->CR |= ADC_CR_ADSTART;
     
-//     // Timers Start Functions
-//     // TIM_3_Init ();    //lo utilizo para 1 a 10V y para synchro ADC
-//     // TIM_16_Init();    //o utilizo para synchro de relay
-//     // TIM16Enable();
+    // LCD Init and Welcome Code
+    LCD_UtilsInit();
+    CTRL_BKL_ON;
 
-// #if (!defined HARDWARE_VER_1_1) && \
-//     (!defined HARDWARE_VER_1_0)
-//     //-- ADC Init
-//     AdcConfig();
+    while (LCD_ShowBlink("Kirno Technology",
+                         "  Smart Driver  ",
+                         1,
+                         BLINK_NO) != resp_finish);
 
-//     //-- DMA configuration and Init
-//     DMAConfig();
-//     DMA1_Channel1->CCR |= DMA_CCR_EN;
-
-//     ADC1->CR |= ADC_CR_ADSTART;
-//     Wait_ms(5);    // wait a few voltage samples
-//     Battery_Check_Init();
-// #endif
-
-//     WelcomeCode ();
-//     FuncsGSMReset ();
-
-//     // Backuped Memory Parameters
-//     memcpy(&mem_conf, pmem, sizeof(parameters_typedef));
-//     if (mem_conf.memory_saved_flag != 0)
-//     {
-//         //memoria vacia --> Configuracion a Default
-//         mem_conf.memory_saved_flag = 0;
-//         timer_rep_conf = 2;
-//         envios_ok_conf = 0;
-//         prender_ring_conf = 0;
-//         battery_check_conf = 0;
-//         socket_use_enable_conf = 0;
-        
-//         memset(num_tel_imei, '\0', sizeof(num_tel_imei));
-//         memset(num_tel_prop, '\0', sizeof(num_tel_prop));
-//         memset(num_tel_rep, '\0', sizeof(num_tel_rep));
-//         memset(sitio_prop, '\0', sizeof(sitio_prop));
-
-//         // strcpy(num_tel_rep, "1141747063");
-//         // strcpy(num_tel_rep, "");        
-//         // strcpy(sitio_prop, "Prueba Kirno");
-//         //el timer a reportar esta n minutos, yo tengo tick cada 2 segundos
-//         // strcpy( mem_conf.num_reportar, "1149867843");	//segunda sim de claro
-    
-//         Usart2Debug("Memory Empty\n", 1);
-//     }
-//     else
-//         Usart2Debug("Memory Have Saved Data\n", 1);
+    while (LCD_ShowBlink(" Dexel          ",
+                         "  Lighting      ",
+                         2,
+                         BLINK_NO) != resp_finish);
 
     
-// //--- Programa de Activacion SMS - Produccion ---
-//     main_state_t main_state = main_init;
-//     unsigned char led_rssi_status = 0;
-
-//     unsigned char alarm_input = 0;
-//     unsigned char panel_input = 0;
-//     unsigned short remote_number = 0;
-
-//     static char buff [SITE_MAX_LEN + 20] = { 0 };
-//     unsigned char answer = 0;    //multi pourpose answer
-
-//     // for memory alignment pourpose
-//     // sprintf(buff, "memory size: %d\n", sizeof(mem_conf));
-//     // Usart2Debug(buff, 0);
+    // Production Program ---------------------------
+    sw_actions_t action = selection_none;
+    resp_t resp = resp_continue;
+    unsigned char ch_values [2] = { 0 };
+    main_state_e main_state = MAIN_INIT;
+    unsigned char packet_cnt = 0;
     
-//     // set the first keepalive
-//     keepalive_cnt = mem_conf.keepalive;
+    while (1)
+    {
+        switch (main_state)
+        {
+        case MAIN_INIT:
+            // get saved config or create one for default
+            if (pflash_mem->program_type != 0xff)
+            {
+                //memory with valid data
+                memcpy(&mem_conf, pflash_mem, sizeof(parameters_typedef));
+            }
+            else
+            {
+                //hardware defaults
+                mem_conf.temp_prot = TEMP_IN_70;    //70 degrees
+                mem_conf.max_current_channels[0] = 255;
+                mem_conf.max_current_channels[1] = 255;
+                mem_conf.current_eight_amps = 0;
+                mem_conf.channels_operation_mode = CCT1_MODE;
 
-//     while (1)
-//     {
-//         switch (main_state)
-//         {
-//         case main_init:
-//             ChangeLed(LED_STANDBY);
-//             ACT_12V_OFF;
-//             main_state = main_wait_for_gsm_network;
-//             break;
+                mem_conf.dmx_first_channel = 1;
+                mem_conf.dmx_channel_quantity = 2;                
+                // mem_conf.program_type = DMX_MODE;
+            }
 
-//         case main_wait_for_gsm_network:
-//             if (FuncsGSMStateAsk() >= gsm_state_ready)
-//             {
-//                 main_state = main_ready;
-//                 ChangeLed(LED_GSM_NETWORK_LOW_RSSI);
-//             }
-//             break;
+            main_state++;
+            break;
 
-//         case main_ready:
+        case MAIN_HARD_INIT:
 
-//             // activate from SMS
-//             if (comms_activate_sms_flag)
-//             {
-//                 comms_activate_sms_flag_reset;
-//                 main_state = main_enable_output;
-//                 Activation_12V_On();    // ACT_12V_ON;
-//                 timer_standby = timer_rep_conf * 1000;
-//                 Usart2Debug("ACT_12V ACTIVO\n", 0);
-//             }
+            //reseteo hardware
+            DMX_DisableRx();
 
-//             // activate from phone ringing
-//             else if ((comms_activate_ringing_flag) &&
-//                      (prender_ring_conf) &&
-//                      (!timer_prender_ringing))
-//             {
-//                 comms_activate_ringing_flag_reset;
-//                 timer_prender_ringing = 12000;
-//                 main_state = main_enable_output;
-//                 Activation_12V_On();    // ACT_12V_ON;
-//                 timer_standby = timer_rep_conf * 1000;
-//                 Usart2Debug("ACT_12V ACTIVO\n", 0);
-//             }
+            // //reseteo canales
+            // PWMChannelsReset();
 
-// #if (!defined HARDWARE_VER_1_1) && \
-//     (!defined HARDWARE_VER_1_0)
-//             // reports from battery status
-//             if (FuncsGSMStateAsk () == gsm_state_ready)
-//             {
-//                 // if we are in gprs mode check always
-//                 if (socket_use_enable_conf)
-//                 {                
-//                     if (comms_battery_low_flag)
-//                     {
-//                         ContactIDString(low_system_battery_opening,
-//                                         mem_conf.client_number,
-//                                         "000",
-//                                         buff);
+            // //limpio los filtros
+            // FiltersAndOffsets_Filters_Reset();
 
-//                         comms_battery_low_flag_reset;
-                                    
-//                         repo.buffer = buff;
-//                         repo.attempts = 3;
-//                         repo.media_flags = REPORT_BY_IP1 | REPORT_BY_IP2 | REPORT_BY_SMS;
-//                         main_state = main_report_buffer;
-//                     }
-//                     else if (comms_battery_good_flag)
-//                     {
-//                         ContactIDString(low_system_battery_close,
-//                                         mem_conf.client_number,
-//                                         "000",
-//                                         buff);
-                                    
-//                         comms_battery_good_flag_reset;
+            //reviso si es 4 o 8Amps
+            unsigned char current = ConvertCurrentFromMemory (&mem_conf);
+            char config = 1;
+            while (config)
+            {
+                resp = Comms_Power_Send_Current_Conf (current);
 
-//                         repo.buffer = buff;
-//                         repo.attempts = 3;
-//                         repo.media_flags = REPORT_BY_IP1 | REPORT_BY_IP2 | REPORT_BY_SMS;
-//                         main_state = main_report_buffer;
-//                     }
-//                     else if (comms_keypad_with_ac_flag)
-//                     {
-//                         ContactIDString(ac_loss_close,
-//                                         mem_conf.client_number,
-//                                         "000",
-//                                         buff);
-                                    
-//                         comms_keypad_with_ac_flag_reset;
+                if (resp == resp_ok)
+                    config = 0;
 
-//                         repo.buffer = buff;
-//                         repo.attempts = 3;
-//                         repo.media_flags = REPORT_BY_IP1 | REPORT_BY_IP2 | REPORT_BY_SMS;
-//                         main_state = main_report_buffer;
-//                     }
-//                     else if (comms_keypad_on_batt_flag)
-//                     {
-//                         ContactIDString(ac_loss_opening,
-//                                         mem_conf.client_number,
-//                                         "000",
-//                                         buff);
-                                    
-//                         comms_keypad_on_batt_flag_reset;
-
-//                         repo.buffer = buff;
-//                         repo.attempts = 3;
-//                         repo.media_flags = REPORT_BY_IP1 | REPORT_BY_IP2 | REPORT_BY_SMS;
-//                         main_state = main_report_buffer;
-//                     }
-//                 }
-//                 // in sms mode check only if its configured
-//                 else if ((battery_check_conf) &&
-//                          ((comms_battery_low_flag) ||
-//                           (comms_battery_disconnect_flag)))
-//                 {
-//                     unsigned char volts_int = 0;
-//                     unsigned char volts_dec = 0;
-//                     Battery_Voltage(&volts_int, &volts_dec);
+                if (resp == resp_timeout)
+                {
+                    config = 0;
+                    while (LCD_ShowBlink("No comms wth pwr",
+                                         "currnt no config",
+                                         1,
+                                         BLINK_NO) != resp_finish);
                     
-//                     if (comms_battery_low_flag)
-//                     {
-//                         sprintf(buff, "BAT_LOW: %02d.%02dV", volts_int, volts_dec);
-//                         comms_battery_low_flag_reset;
-//                     }
-                        
-//                     if (comms_battery_disconnect_flag)
-//                     {
-//                         sprintf(buff, "BAT_DISC: %02d.%02dV", volts_int, volts_dec);
-//                         comms_battery_disconnect_flag_reset;
-//                     }
+                }
+            }
 
-//                     // send report by sms
-//                     repo.buffer = buff;
-//                     repo.attempts = 3;
-//                     repo.media_flags = REPORT_BY_SMS;
-//                     main_state = main_report_buffer;
-//                 }
-//             }
+            // packet reception enable
+            DMX_EnableRx();
+            timer_standby = 1000;    //one second for dmx detection
+            mem_conf.program_type = AUTODETECT_MODE;
 
-//             // battery measurement
-//             Battery_Check();
-// #endif
+            main_state++;
+            break;
 
-//             // activate from 12V on test1 input or activation by panel
-//             alarm_input = Check_Alarm_Input();
-//             panel_input = Panel_Check_Alarm (&remote_number);
-//             if (alarm_input)
-//             {
-//                 Activation_12V_On();    // ACT_12V_ON;
-//                 Usart2Debug("External 12V Activation!\n", 0);
-//                 main_state = main_report_alarm_input;
-//             }
-//             else if (panel_input)
-//             {
-//                 Activation_12V_On();    // ACT_12V_ON;
-//                 Usart2Debug("Panel Internal Activation!\n", 0);
-//                 main_state = main_report_panel_input;
-//             }
-//             else if (FuncsGSMStateAsk() < gsm_state_ready)
-//             {
-//                 main_state = main_wait_for_gsm_network;
-//                 ChangeLed(LED_STANDBY);
-//             }
-//             else if (rssi_level == 0xff)    // some cmd problems!
-//             {
-//                 // show commands errors on led
-//                 if (led_rssi_status != LED_RSSI_CMD_ERRORS)
-//                 {
-//                     ChangeLed(LED_GSM_CMD_ERRORS);
-//                     led_rssi_status = LED_RSSI_CMD_ERRORS;
-//                 }
-//             }
-//             else
-//             {
-//                 if ((rssi_level > 10) && (led_rssi_status != LED_RSSI_HIGH))
-//                 {
-//                     ChangeLed(LED_GSM_NETWORK_HIGH_RSSI);
-//                     led_rssi_status = LED_RSSI_HIGH;
-//                 }
+        case MAIN_CHECK_CONF:
+            if (Packet_Detected_Flag)
+            {
+                Packet_Detected_Flag = 0;
+                packet_cnt++;
+            }
 
-//                 if ((rssi_level <= 10) && (led_rssi_status != LED_RSSI_LOW))
-//                 {
-//                     ChangeLed(LED_GSM_NETWORK_LOW_RSSI);
-//                     led_rssi_status = LED_RSSI_LOW;
-//                 }
-//             }
+            if ((packet_cnt > 5) &&
+                (timer_standby))
+            {
+                mem_conf.program_type = DMX_MODE;
+                main_state = MAIN_DMX_MODE_INIT;
+            }
+            else if (!timer_standby)
+            {
+                mem_conf.program_type = MANUAL_MODE;
+                main_state = MAIN_MANUAL_MODE_INIT;
+            }
+            break;
 
+        case MAIN_DMX_MODE_INIT:
+            // reception variables
+            DMX_channel_selected = mem_conf.dmx_first_channel;
+            DMX_channel_quantity = mem_conf.dmx_channel_quantity;
 
-//             // check if keepalive is enabled, check if gsm is free
-//             if ((socket_use_enable_conf) &&
-//                 (mem_conf.keepalive) &&
-//                 (!keepalive_cnt) &&
-//                 (FuncsGSMStateAsk() == gsm_state_ready))
-//             {
-//                 ContactIDString(keep_alive,
-//                                 mem_conf.client_number,
-//                                 "000",
-//                                 buff);
+            // Force first screen
+            Packet_Detected_Flag = 1;
+            dmx_buff_data[0] = 0;
+            dmx_buff_data[1] = 0;
+            dmx_buff_data[2] = 0;
 
-//                 keepalive_cnt = mem_conf.keepalive;
-                                    
-//                 repo.buffer = buff;
-//                 repo.attempts = 3;
-//                 repo.media_flags = REPORT_BY_IP1 | REPORT_BY_IP2;
-//                 main_state = main_report_buffer;
-//                 Usart2Debug("send keepalive msg!!!\n", 2);
-//             }
-//             break;
+            // Mode Timeout enable
+            ptFTT = &DMXMode_UpdateTimers;
 
-//         case main_enable_output:
-//             if (!timer_standby)
-//             {
-//                 main_state = main_ready;
-//                 ACT_12V_OFF;
-//             }
-//             break;
+            // packet reception enable
+            DMX_EnableRx();
 
-//         case main_report_alarm_input:
-//             // check if we are going to use gprs mode or sms mode
-//             if (socket_use_enable_conf)
-//             {
-//                 // gprs mode, assembly the buffer
-//                 ContactIDString(panic_alarm,
-//                                 mem_conf.client_number,
-//                                 "000",
-//                                 buff);
-                                    
-//                 repo.buffer = buff;
-//                 repo.attempts = 3;
-//                 repo.media_flags = REPORT_BY_IP1 | REPORT_BY_IP2 | REPORT_BY_SMS;
-//             }
-//             else
-//             {
-//                 // use only sms mode, assembly buffer
-//                 strcpy(buff, "Activacion en: ");
-//                 strcat(buff, sitio_prop);
+            DMXModeReset();
+            main_state = MAIN_IN_DMX_MODE;
+            packet_cnt = 0;    // reset packet counter for autodetection
+            break;
 
-//                 repo.buffer = buff;
-//                 repo.attempts = 3;
-//                 repo.media_flags = REPORT_BY_SMS;
-//             }
+        case MAIN_MANUAL_MODE_INIT:
+            // packet reception disable, check for colors
+            DMX_DisableRx();
 
-//             main_state = main_report_buffer;
-//             break;
+            // Mode Timeout enable
+            ptFTT = &ManualMode_UpdateTimers;
 
-//         case main_report_panel_input:
-//             // check if we are going to use gprs mode or sms mode
-//             if (socket_use_enable_conf)
-//             {
-//                 // gprs mode, assembly the buffer
-//                 char remote_number_str [4] = { 0 };                
-//                 sprintf(remote_number_str, "%03d", remote_number);
+            for (unsigned char n = 0; n < sizeof(ch_values); n++)
+                ch_values[n] = mem_conf.fixed_channels[n];
 
-//                 ContactIDString(panic_alarm,
-//                                 mem_conf.client_number,
-//                                 remote_number_str,
-//                                 buff);
-
-//                 repo.buffer = buff;
-//                 repo.attempts = 3;
-//                 repo.media_flags = REPORT_BY_IP1 | REPORT_BY_IP2 | REPORT_BY_SMS;
-//             }
-//             else
-//             {
-//                 // use only sms mode, assembly buffer
-//                 sprintf(buff, "Activo %03d en: ", remote_number);
-//                 strcat(buff, sitio_prop);                
-
-//                 repo.buffer = buff;
-//                 repo.attempts = 3;
-//                 repo.media_flags = REPORT_BY_SMS;
-//             }
-
-//             main_state = main_report_buffer;
-//             break;
+            Comms_Power_Send_Bright(ch_values);
+                
+            ManualModeReset();                
+            main_state = MAIN_IN_MANUAL_MODE;
+            packet_cnt = 0;    // reset packet counter for autodetection
+            break;
             
+        case MAIN_IN_DMX_MODE:
+            // Check encoder first
+            action = CheckActions();
 
-//         case main_report_buffer:
-//             answer = ReportsVerifyAndSend(&repo);
+            if (action != selection_back)
+            {
+                
+                resp = DMXMode (ch_values, action);
+
+                if (resp == resp_change)
+                {
+                    Comms_Power_Send_Bright(ch_values);
+                }
+
+                if (resp == resp_need_to_save)
+                {
+                    need_to_save_timer = 10000;
+                    need_to_save = 1;
+                }
+            }
+            else
+                main_state = MAIN_ENTERING_MAIN_MENU;
+
+            // Manual mode autodetection
+            if (DMXGetPacketTimer () == 0)
+            {
+                if (!timer_standby)
+                {
+                    if (packet_cnt < 2)
+                    {
+                        packet_cnt++;
+                        timer_standby = 200;
+                    }
+                    else
+                    {
+                        // manual detection
+                        main_state = MAIN_MANUAL_MODE_INIT;
+                        mem_conf.program_type = MANUAL_MODE;
+                    }
+                }
+            }
+            break;
+
+        case MAIN_IN_MANUAL_MODE:
+            // Check encoder first
+            action = CheckActions();
+
+            if (action != selection_back)
+            {
+                resp = ManualMode (ch_values, action);
+
+                if (resp == resp_change)
+                {
+                    for (unsigned char n = 0; n < sizeof(ch_values); n++)
+                        mem_conf.fixed_channels[n] = ch_values[n];
+
+                    Comms_Power_Send_Bright(ch_values);
+                }
+
+                if (resp == resp_need_to_save)
+                {
+                    need_to_save_timer = 10000;
+                    need_to_save = 1;
+                }
+            }
+            else
+                main_state = MAIN_ENTERING_MAIN_MENU;
+
+            // Dmx presence autodetection
+            if (dmx_receive_flag)
+            {
+                dmx_receive_flag = 0;
+                packet_cnt++;
+                timer_standby = 1000;
+            }
+
+            if (packet_cnt > 5)
+            {
+                if (timer_standby)
+                {
+                    // dmx detection
+                    main_state = MAIN_DMX_MODE_INIT;
+                    mem_conf.program_type = DMX_MODE;                    
+                }
+                else
+                {
+                    // dmx not present, reset the counter
+                    packet_cnt = 0;
+                }
+            }
+            break;
+
+        case MAIN_IN_OVERTEMP:
+            if (Temp_Channel < TEMP_RECONNECT)
+            {
+                //reconnect
+                main_state = MAIN_INIT;
+            }
+            break;
+
+        case MAIN_IN_OVERCURRENT:
             
-//             if (answer == REPORT_NOT_SENT)
-//             {
-//                 main_state = main_report_buffer_not_sended;
-//                 Usart2Debug("report not sended\n", 1);
-//                 timer_standby = 6000;    // six seconds to show the error
-//             }
-
-//             if (answer == REPORT_SENT)
-//             {
-//                 main_state = main_report_buffer_sended;
-//                 Usart2Debug("report delivered\n", 1);
-//                 timer_standby = 2000;    // two seconds for show led cycle
-//             }
-//             break;
-
-//         case main_report_buffer_not_sended:
-//             UpdateLedActivate();
-//             if (!timer_standby)
-//             {
-//                 ACT_12V_OFF;
-//                 main_state = main_ready;
-//             }            
-//             break;
-
-//         case main_report_buffer_sended:
-//             ToggleLedActivate();    // sended ok show led cycle
-//             if (!Check_Alarm_Input() && (!timer_standby))    // sended ok
-//             {
-//                 ACT_12V_OFF;
-//                 main_state = main_ready;
-//             }
-//             break;
+            break;
             
-//         default:
-//             main_state = main_init;
-//             break;
-//         }
+        case MAIN_ENTERING_MAIN_MENU:
+            // hardware outputs disable
+            DMX_DisableRx();
 
-//         // check configuration changes and the need for a memory save
-//         if (main_state >= main_ready)
-//             ConfigurationChange();
+            // channels reset
+            for (unsigned char n = 0; n < sizeof(ch_values); n++)
+                ch_values[n] = 0;
 
-//         // The things that do not depend on the program state
-//         UpdateLed ();
-//         FuncsGSM ();
-//         FuncsGSMG_Entering();    //check config entry and clean the usart2 buffer
+            Comms_Power_Send_Bright(ch_values);
+
+            // clean display
+            LCD_Writel1(s_blank);
+            LCD_Writel2(s_blank);
+            Wait_ms(250);
+            main_state++;
+            break;
+
+        case MAIN_ENTERING_MAIN_MENU2:
+            if (Check_SW_SEL() < SW_HALF)
+                main_state = MAIN_HARD_INIT;
+            else if ((Check_SW_UP() > SW_NO) &&
+                     (Check_SW_DWN() > SW_NO))
+            {
+                MENU_Main_Reset();
+                main_state++;
+            }
+            break;
+            
+        case MAIN_IN_MAIN_MENU:
+            action = CheckActions();
+            
+            resp = MENU_Main(&mem_conf, action);
+
+            if (resp == resp_need_to_save)
+            {
+                need_to_save_timer = 0;
+                need_to_save = 1;
+                
+                main_state = MAIN_HARD_INIT;
+            }
+            
+            if (resp == resp_finish)
+                main_state = MAIN_HARD_INIT;
+
+            break;
+
+        default:
+            main_state = MAIN_INIT;
+            break;
+        }
+
+        // memory savings after config
+        if ((need_to_save) && (!need_to_save_timer))
+        {
+            __disable_irq();
+            need_to_save = Flash_WriteConfigurations(
+                (uint32_t *) pflash_mem,
+                sizeof(parameters_typedef));
+            __enable_irq();
+
+            need_to_save = 0;
+        }
+
+        // things that not depends on the main status
+        UpdateSwitches();
+
+        Comms_Power_Update();
+
+#ifdef USE_TEMP_PROT
+        if (main_state != MAIN_IN_OVERTEMP)
+        {
+            if (Temp_Channel > mem_conf.temp_prot)
+            {
+                //deshabilitar salidas hardware
+                DMX_DisableRx();
+
+                // reset the channels
+                for (unsigned char n = 0; n < sizeof(ch_values); n++)
+                    ch_values[n] = 0;
+
+                Comms_Power_Send_Bright(ch_values);
+
+                CTRL_FAN_ON;
+
+                while (LCD_ShowBlink("  Overtemp!!!   ",
+                                     " LEDs shutdown  ",
+                                     1,
+                                     BLINK_NO) != resp_finish);
+                
+                main_state = MAIN_IN_OVERTEMP;
+            }
+            else if (Temp_Channel > TEMP_IN_35)
+                CTRL_FAN_ON;
+            else if (Temp_Channel < TEMP_IN_30)
+                CTRL_FAN_OFF;
+        }
+#endif    //USE_TEMP_PROT
+#ifdef USE_CTROL_FAN_ALWAYS_ON
+        CTRL_FAN_ON;
+#endif
         
-//     }	//end while 1
-
-//--- Fin Programa de Produccion Alarma SMS ---
-
-
+    }    //end of while 1
 
     return 0;
 }
@@ -505,28 +502,7 @@ int main(void)
 //--- End of Main ---//
 
 
-// Module Functions ------------------------------------------------------------
-// void ConfigurationChange (void)
-// {
-//     unsigned char saved_ok = 0;
-
-//     if (comms_memory_save_flag)
-//     {
-//         comms_memory_save_flag_reset;
-//         while (!Usart2SendVerifyEmpty());
-    
-//         __disable_irq();
-//         saved_ok = Flash_WriteConfigurations((uint32_t *)&mem_conf, sizeof(mem_conf));
-//         __enable_irq();                
-
-//         if (saved_ok == FLASH_COMPLETE)
-//             Usart2Debug("Memory Saved OK!\n", 1);
-//         else
-//             Usart2Debug("Memory Error!!!\n", 1);
-//     }
-// }
-
-
+// Module Private Functions ----------------------------------------------------
 void EXTI4_15_IRQHandler(void)
 {
     DMX_Int_Break_Handler();
@@ -542,24 +518,22 @@ void TimingDelay_Decrement(void)
     if (timer_standby)
         timer_standby--;
 
-    // if (timer_prender_ringing)
-    //     timer_prender_ringing--;
-
-    // USART_Timeouts();
+    if (need_to_save_timer)
+        need_to_save_timer--;
 
     LCD_UpdateTimer ();
+
     HARD_Timeouts();
+
     DMX_Int_Millis_Handler ();
     
-    // if (mins_millis < 60000)
-    //     mins_millis++;
-    // else
-    // {
-    //     mins_millis = 0;
-    //     if (keepalive_cnt)
-    //         keepalive_cnt--;
-    // }
-    
+    // Modes Menus Timers
+    if (ptFTT != NULL)
+        ptFTT();
+
+    // USART_Timeouts();
+    Comms_Power_Timeouts ();
+
 }
 
 void SysTickError (void)
@@ -579,6 +553,16 @@ void SysTickError (void)
                  "nop \n\t" );
         }
     }
+}
+
+
+// mocked functions to migrate -------------------------------------------------
+void PWMChannelsReset (void)
+{
+}
+
+void FiltersAndOffsets_Filters_Reset (void)
+{
 }
 
 //--- end of file ---//
