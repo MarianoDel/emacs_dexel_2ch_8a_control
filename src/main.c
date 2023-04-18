@@ -134,6 +134,9 @@ int main(void)
     TIM_14_Init ();
     DMX_DisableRx ();
 
+    // Usart for comms with power
+    Usart2Config ();
+    
     // ADC & DMA for temp sense
     AdcConfig();
     DMAConfig();
@@ -184,7 +187,7 @@ int main(void)
 
                 mem_conf.dmx_first_channel = 1;
                 mem_conf.dmx_channel_quantity = 2;                
-                // mem_conf.program_type = DMX_MODE;
+                mem_conf.program_type = AUTODETECT_MODE;
             }
 
             main_state++;
@@ -449,10 +452,25 @@ int main(void)
         {
             __disable_irq();
             need_to_save = Flash_WriteConfigurations(
-                (uint32_t *) pflash_mem,
+                (uint32_t *) &mem_conf,
                 sizeof(parameters_typedef));
             __enable_irq();
 
+            // if (need_to_save != FLASH_COMPLETE)
+            // {
+            //     while (LCD_ShowBlink("Flash: error    ",
+            //                          "   not saved!!! ",
+            //                          1,
+            //                          BLINK_NO) != resp_finish);
+            // }
+            // else
+            // {
+            //     while (LCD_ShowBlink("Flash:          ",
+            //                          "   saved ok!    ",
+            //                          1,
+            //                          BLINK_NO) != resp_finish);                
+            // }
+                
             need_to_save = 0;
         }
 
