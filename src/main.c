@@ -47,8 +47,6 @@ typedef enum {
     MAIN_MANUAL_MODE_INIT,
     MAIN_IN_DMX_MODE,
     MAIN_IN_MANUAL_MODE,
-    MAIN_IN_OVERTEMP,
-    MAIN_IN_OVERCURRENT,
     MAIN_ENTERING_MAIN_MENU,
     MAIN_ENTERING_MAIN_MENU2,    
     MAIN_IN_MAIN_MENU
@@ -91,18 +89,10 @@ unsigned char need_to_save = 0;
 
 // Module Private Functions ----------------------------------------------------
 void TimingDelay_Decrement(void);
-void ConfigurationChange (void);
 void SysTickError (void);
+unsigned char CheckTempGreater (unsigned short temp_sample, unsigned short temp_prot);
 
-// mocked functions to migrate -------------------------------------------------
-void PWMChannelsReset (void);
-void FiltersAndOffsets_Filters_Reset (void);
 
-// mocked defines to migrate ---------------------------------------------------
-#define I_SEL_ON    asm ("nop \n\t")
-#define I_SEL_OFF    asm ("nop \n\t")
-
- 
 //-------------------------------------------//
 // @brief  Main program.
 // @param  None
@@ -180,6 +170,7 @@ int main(void)
             {
                 //hardware defaults
                 mem_conf.temp_prot = TEMP_IN_70;    //70 degrees
+                mem_conf.temp_prot_deg = TEMP_DEG_DEFAULT;    //70 degrees
                 mem_conf.max_current_channels[0] = 255;
                 mem_conf.max_current_channels[1] = 255;
                 mem_conf.current_eight_amps = 0;
@@ -384,18 +375,6 @@ int main(void)
             }
             break;
 
-        case MAIN_IN_OVERTEMP:
-            if (Temp_Channel < TEMP_RECONNECT)
-            {
-                //reconnect
-                main_state = MAIN_INIT;
-            }
-            break;
-
-        case MAIN_IN_OVERCURRENT:
-            
-            break;
-            
         case MAIN_ENTERING_MAIN_MENU:
             // hardware outputs disable
             DMX_DisableRx();
@@ -480,34 +459,74 @@ int main(void)
         Comms_Power_Update();
 
 #ifdef USE_TEMP_PROT
-        if (main_state != MAIN_IN_OVERTEMP)
+        if (CheckTempGreater (Temp_Channel, NTC_SHORTED))
         {
-            if (Temp_Channel > mem_conf.temp_prot)
-            {
-                //deshabilitar salidas hardware
-                DMX_DisableRx();
-
-                // reset the channels
-                for (unsigned char n = 0; n < sizeof(ch_values); n++)
-                    ch_values[n] = 0;
-
-                Comms_Power_Send_Bright(ch_values);
-
-                CTRL_FAN_ON;
-
-                while (LCD_ShowBlink("  Overtemp!!!   ",
-                                     " LEDs shutdown  ",
-                                     1,
-                                     BLINK_NO) != resp_finish);
-                
-                main_state = MAIN_IN_OVERTEMP;
-            }
-            else if (Temp_Channel > TEMP_IN_35)
-                CTRL_FAN_ON;
-            else if (Temp_Channel < TEMP_IN_30)
-                CTRL_FAN_OFF;
+            // do nothing in here
         }
+        else if (CheckTempGreater (Temp_Channel, mem_conf.temp_prot))            
+        {
+            //deshabilitar salidas hardware
+            DMX_DisableRx();
+
+            // reset the channels
+            for (unsigned char n = 0; n < sizeof(ch_values); n++)
+                ch_values[n] = 0;
+
+            Comms_Power_Send_Bright(ch_values);
+
+            CTRL_FAN_ON;
+
+            while (LCD_ShowBlink("  Overtemp!!!   ",
+                                 " LEDs shutdown  ",
+                                 1,
+                                 BLINK_NO) != resp_finish);
+
+            while (CheckTempGreater (Temp_Channel, TEMP_RECONNECT))
+            {
+                Wait_ms(100);
+            }
+
+            //reconnect
+            main_state = MAIN_INIT;
+                
+        }
+        else if (CheckTempGreater (Temp_Channel, TEMP_IN_35))
+            CTRL_FAN_ON;
+        else if (CheckTempGreater (TEMP_IN_30, Temp_Channel))
+            CTRL_FAN_OFF;
+        
 #endif    //USE_TEMP_PROT
+
+#ifdef USE_NTC_DETECTION
+        // check for ntc and stop
+        if (Temp_Channel > NTC_DISCONNECTED)
+        {
+            //deshabilitar salidas hardware
+            DMX_DisableRx();
+
+            // reset the channels
+            for (unsigned char n = 0; n < sizeof(ch_values); n++)
+                ch_values[n] = 0;
+
+            Comms_Power_Send_Bright(ch_values);
+
+            CTRL_FAN_ON;
+
+            while (LCD_ShowBlink("  No NTC        ",
+                                 "    connected!  ",
+                                 1,
+                                 BLINK_NO) != resp_finish);
+
+            while (Temp_Channel > NTC_DISCONNECTED)
+            {
+                Wait_ms(100);
+            }
+
+            //reconnect
+            main_state = MAIN_INIT;
+        }
+#endif    // USE_NTC_DETECTION
+        
 #ifdef USE_CTROL_FAN_ALWAYS_ON
         CTRL_FAN_ON;
 #endif
@@ -521,6 +540,23 @@ int main(void)
 
 
 // Module Private Functions ----------------------------------------------------
+unsigned char CheckTempGreater (unsigned short temp_sample, unsigned short temp_prot)
+{
+    unsigned char is_greater = 0;
+
+#ifdef TEMP_SENSOR_LM335
+    if (temp_sample > temp_prot)
+        is_greater = 1;
+#endif
+#ifdef TEMP_SENSOR_NTC1K
+    if (temp_sample < temp_prot)    // see it in voltage
+        is_greater = 1;
+#endif
+    
+    return is_greater;
+}
+
+
 void EXTI4_15_IRQHandler(void)
 {
     DMX_Int_Break_Handler();
@@ -573,15 +609,6 @@ void SysTickError (void)
     }
 }
 
-
-// mocked functions to migrate -------------------------------------------------
-void PWMChannelsReset (void)
-{
-}
-
-void FiltersAndOffsets_Filters_Reset (void)
-{
-}
 
 //--- end of file ---//
 
