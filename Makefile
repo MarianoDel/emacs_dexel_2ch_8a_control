@@ -247,14 +247,12 @@ tests:
 	gcc src/tests.c
 	./a.out
 
-tests_comm:
+tests_comms:
 	# first module objects to test
-	gcc -c src/comm.c -I. $(INCDIR) $(DDEFS)
-	gcc -c src/sms_gprs_data.c -I. $(INCDIR) $(DDEFS)
+	gcc -c src/comms_power.c -I. $(INCDIR) $(DDEFS)
 	# second auxiliary helper modules
 	gcc -c src/tests_ok.c -I $(INCDIR)
-	gcc -c src/tests_mock_usart.c -I $(INCDIR)
-	gcc src/tests_comm.c sms_gprs_data.o comm.o tests_ok.o tests_mock_usart.o -I $(INCDIR) $(DDEFS)
+	gcc src/tests_comms.c comms_power.o tests_ok.o -I $(INCDIR) $(DDEFS)
 	./a.out
 
 

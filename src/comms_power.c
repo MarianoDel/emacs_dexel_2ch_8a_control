@@ -49,14 +49,22 @@ resp_t Comms_Power_Send_Bright (unsigned char * p_ch)
     bright = *(p_ch + 0);
     temp0 = 255 - *(p_ch + 1);
     temp1 = 255 - temp0;
-        
+
+    unsigned char temp0_orig = temp0;
+    unsigned char temp1_orig = temp1;
+
     calc = temp0 * bright;
     calc >>= 8;    // to 255
     temp0 = (unsigned char) calc;
+    if ((bright) && (temp0_orig))
+        temp0 += 1;
         
     calc = temp1 * bright;
     calc >>= 8;    // to 255
     temp1 = (unsigned char) calc;
+    if ((bright) && (temp1_orig))
+        temp1 += 1;
+    
 
     sprintf(buff, "ch1 %03d ch2 %03d sum %03d\n",
             temp0,
