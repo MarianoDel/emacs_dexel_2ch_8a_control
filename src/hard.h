@@ -30,6 +30,8 @@
 #define USE_TEMP_PROT
 #define USE_NTC_DETECTION
 // #define USE_CTROL_FAN_ALWAYS_ON    //fan always
+#define USE_SW_UP_FOR_SW_DWN    // front panel error, change UP for DWN 28-04-2023
+
 
 //---- End of Features Configuration -------------
 
@@ -101,11 +103,19 @@
 //GPIOB pin3
 #define SW_SEL    ((GPIOB->IDR & 0x0008) == 0)
 
+#ifdef USE_SW_UP_FOR_SW_DWN
+//GPIOB pin4
+#define SW_DWN    ((GPIOB->IDR & 0x0010) == 0)
+
+//GPIOB pin5
+#define SW_UP    ((GPIOB->IDR & 0x0020) == 0)
+#else
 //GPIOB pin4
 #define SW_UP    ((GPIOB->IDR & 0x0010) == 0)
 
 //GPIOB pin5
 #define SW_DWN    ((GPIOB->IDR & 0x0020) == 0)
+#endif
 
 //GPIOB pin6    Usart1 Tx double function SELECT COLOR
 //GPIOB pin7    Usart1 Rx double function SELECT COLOR

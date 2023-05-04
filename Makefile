@@ -94,7 +94,7 @@ SRC += ./src/dmx_lcd_menu.c
 SRC += ./src/dmx_utils.c
 SRC += ./src/comms_power.c
 
-# SRC += ./src/dsp.c
+SRC += ./src/dsp.c
 
 
 
