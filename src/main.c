@@ -82,7 +82,7 @@ volatile unsigned short mode_effect_timer;
 volatile unsigned short timer_standby = 0;
 volatile unsigned short need_to_save_timer = 0;
 
-#if (defined USE_TEMP_PROT) || (defined USE_NTC_DETECTION)    
+#ifdef USE_TEMP_PROT
 unsigned short timer_temp = 0;
 ma16_u16_data_obj_t temp_filter;
 #endif
@@ -162,19 +162,24 @@ int main(void)
     main_state_e main_state = MAIN_INIT;
     unsigned char packet_cnt = 0;
 
-#if (defined USE_TEMP_PROT) || (defined USE_NTC_DETECTION)    
+    // check NTC connection on init
+    unsigned char check_ntc = 0;
     unsigned short temp_filtered = 0;
     MA16_U16Circular_Reset(&temp_filter);
     for (int i = 0; i < 16; i++)
+    {
         temp_filtered = MA16_U16Circular(&temp_filter, Temp_Channel);
-    
-#ifdef USE_TEMP_PROT
-    unsigned char check_temp = 0;
-#endif
-#ifdef USE_NTC_DETECTION
-    unsigned char check_ntc = 0;
-#endif
-#endif    //USE_TEMP_PROT or USE_NTC_DETECTION
+        Wait_ms(30);
+    }
+
+    if (temp_filtered < NTC_SHORTED)
+    {
+        CTRL_FAN_ON;
+        check_ntc = 0;
+    }
+    else
+        check_ntc = 1;
+    // check NTC connection on init    
     
     while (1)
     {
@@ -201,10 +206,11 @@ int main(void)
                 mem_conf.dmx_channel_quantity = 2;                
                 mem_conf.program_type = AUTODETECT_MODE;
             }
-#if (defined USE_TEMP_PROT) || (defined USE_NTC_DETECTION)    
+
+#ifdef USE_TEMP_PROT
             for (int i = 0; i < 16; i++)
                 temp_filtered = MA16_U16Circular(&temp_filter, Temp_Channel);
-#endif    //USE_TEMP_PROT or USE_NTC_DETECTION
+#endif    //USE_TEMP_PROT
 
             main_state++;
             break;
@@ -483,105 +489,89 @@ int main(void)
 
         Comms_Power_Update();
 
-#if (defined USE_TEMP_PROT) || (defined USE_NTC_DETECTION)
-        if ((main_state < MAIN_ENTERING_MAIN_MENU) &&
-            (!timer_temp))
-        {
-            timer_temp = 100;
-            temp_filtered = MA16_U16Circular(&temp_filter, Temp_Channel);
-
 #ifdef USE_TEMP_PROT
-            check_temp = 1;
-#endif
-#ifdef USE_NTC_DETECTION
-            check_ntc = 1;
-#endif
-        }
-#endif    //USE_TEMP_PROT or USE_NTC_DETECTION
-        
-#ifdef USE_TEMP_PROT
-        if (check_temp)
+        if (check_ntc)    //NTC NOT SHORTED
         {
-            check_temp = 0;
-            if (temp_filtered < NTC_SHORTED)
+            if ((main_state < MAIN_ENTERING_MAIN_MENU) &&
+                (!timer_temp))
             {
-                // do nothing in here, sensor with jumper
-            }
-            else if (CheckTempGreater (temp_filtered, mem_conf.temp_prot))            
-            {
-                //deshabilitar salidas hardware
-                DMX_DisableRx();
+                timer_temp = 100;
+                temp_filtered = MA16_U16Circular(&temp_filter, Temp_Channel);
 
-                // reset the channels
-                for (unsigned char n = 0; n < sizeof(ch_values); n++)
-                    ch_values[n] = 0;
-
-                Comms_Power_Send_Bright(ch_values);
-
-                CTRL_FAN_ON;
-
-                while (LCD_ShowBlink("  Overtemp!!!   ",
-                                     " LEDs shutdown  ",
-                                     1,
-                                     BLINK_NO) != resp_finish);
-
-                // go out of here without filter or jumper
-                unsigned char loop = 1;
-                while (loop)
+                if (CheckTempGreater (temp_filtered, mem_conf.temp_prot))            
                 {
-                    if (Temp_Channel < NTC_SHORTED)    //sensor with jumper
-                        loop = 0;
-                    else if (CheckTempGreater (TEMP_RECONNECT, Temp_Channel))
-                        loop = 0;
-                    else
-                        Wait_ms(100);
-                }
+                    //deshabilitar salidas hardware
+                    DMX_DisableRx();
 
-                //reconnect
-                main_state = MAIN_INIT;
+                    // reset the channels
+                    for (unsigned char n = 0; n < sizeof(ch_values); n++)
+                        ch_values[n] = 0;
+
+                    Comms_Power_Send_Bright(ch_values);
+                    
+                    CTRL_FAN_ON;
+
+                    while (LCD_ShowBlink("  Overtemp!!!   ",
+                                         " LEDs shutdown  ",
+                                         1,
+                                         BLINK_NO) != resp_finish);
+
+                    // go out of here without filter or jumper
+                    unsigned char loop = 1;
+                    while (loop)
+                    {
+                        if (Temp_Channel < NTC_SHORTED)    //sensor with jumper
+                            loop = 0;
+                        else if (CheckTempGreater (TEMP_RECONNECT, Temp_Channel))
+                            loop = 0;
+                        else
+                            Wait_ms(100);
+                    }
+
+                    //reconnect
+                    main_state = MAIN_INIT;
                 
-            }
-            else if (CheckTempGreater (temp_filtered, TEMP_IN_35))
-                CTRL_FAN_ON;
-            else if (CheckTempGreater (TEMP_IN_30, temp_filtered))
-                CTRL_FAN_OFF;
-        }
-#endif    //USE_TEMP_PROT
-
-#ifdef USE_NTC_DETECTION
-        if (check_ntc)
-        {
-            check_ntc = 0;
-            // check for ntc and stop
-            if (temp_filtered > NTC_DISCONNECTED)
-            {
-                //deshabilitar salidas hardware
-                DMX_DisableRx();
-
-                // reset the channels
-                for (unsigned char n = 0; n < sizeof(ch_values); n++)
-                    ch_values[n] = 0;
-
-                Comms_Power_Send_Bright(ch_values);
-
-                CTRL_FAN_ON;
-
-                while (LCD_ShowBlink("  No NTC        ",
-                                     "    connected!  ",
-                                     1,
-                                     BLINK_NO) != resp_finish);
-
-                // go out of here without filter
-                while (Temp_Channel > NTC_DISCONNECTED)
+                }
+                else if (CheckTempGreater (temp_filtered, TEMP_IN_35))
                 {
-                    Wait_ms(100);
+                    CTRL_FAN_ON;
+                }
+                else if (CheckTempGreater (TEMP_IN_30, temp_filtered))
+                {
+                    CTRL_FAN_OFF;
                 }
 
-                //reconnect
-                main_state = MAIN_INIT;
+                // check for ntc and stop                
+                if (temp_filtered > NTC_DISCONNECTED)
+                {
+                    //deshabilitar salidas hardware
+                    DMX_DisableRx();
+
+                    // reset the channels
+                    for (unsigned char n = 0; n < sizeof(ch_values); n++)
+                        ch_values[n] = 0;
+
+                    Comms_Power_Send_Bright(ch_values);
+
+                    CTRL_FAN_ON;
+
+                    while (LCD_ShowBlink("  No NTC        ",
+                                         "    connected!  ",
+                                         1,
+                                         BLINK_NO) != resp_finish);
+
+                    // go out of here without filter
+                    while (Temp_Channel > NTC_DISCONNECTED)
+                    {
+                        Wait_ms(100);
+                    }
+
+                    //reconnect
+                    main_state = MAIN_INIT;
+                }
             }
-        }
-#endif    // USE_NTC_DETECTION
+        }    // ntc not shorted
+#endif    //USE_TEMP_PROT        
         
 #ifdef USE_CTROL_FAN_ALWAYS_ON
         CTRL_FAN_ON;

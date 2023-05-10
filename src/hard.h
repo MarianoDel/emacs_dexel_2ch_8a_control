@@ -28,7 +28,7 @@
 
 //---- Features Configuration --------------------
 #define USE_TEMP_PROT
-#define USE_NTC_DETECTION
+
 // #define USE_CTROL_FAN_ALWAYS_ON    //fan always
 #define USE_SW_UP_FOR_SW_DWN    // front panel error, change UP for DWN 28-04-2023
 
