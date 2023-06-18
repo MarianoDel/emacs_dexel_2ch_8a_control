@@ -36,23 +36,34 @@ int setup_done = 0;
 
 // Testing Function loop -------------------------------------------------------
 gboolean Test_Main_Loop (gpointer user_data)
-{
+{    
     resp_t resp = resp_continue;
 
-    resp = MENU_Main (&configurations, switch_actions);
-    
-    if (resp == resp_need_to_save)
+    if (!setup_done)
     {
-        printf("memory needs a save!\n");
+        configurations.current_int = 1;
+        configurations.current_dec = 0;
+        setup_done = 1;
     }
 
-    //wraper to clean sw
-    g_mutex_lock (&mutex);
-
-    if (switch_actions != selection_none)
-        switch_actions = selection_none;
+    if (setup_done)
+    {
+        resp = MENU_Main (&configurations, switch_actions);
     
-    g_mutex_unlock (&mutex);
+        if (resp == resp_need_to_save)
+        {
+            printf("memory needs a save!\n");
+            printf("current set to: %01d.%01dA\n", configurations.current_int, configurations.current_dec);
+        }
+
+        //wraper to clean sw
+        g_mutex_lock (&mutex);
+
+        if (switch_actions != selection_none)
+            switch_actions = selection_none;
+    
+        g_mutex_unlock (&mutex);
+    }
         
     return TRUE;
 }

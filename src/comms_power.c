@@ -29,6 +29,7 @@
 // Globals ---------------------------------------------------------------------
 volatile unsigned short comms_timeout = 0;
 unsigned short comms_flags = 0;
+char s_power_version [17] = { 0 };
 
 
 // Module Private Functions ----------------------------------------------------
@@ -76,11 +77,11 @@ resp_t Comms_Power_Send_Bright (unsigned char * p_ch)
 }
 
 
-resp_t Comms_Power_Send_Current_Conf (unsigned char new_current)
+resp_t Comms_Power_Send_Current_Conf (unsigned char new_current_int, unsigned char new_current_dec)
 {
     char buff [35] = { 0 };
 
-    sprintf(buff, "current config %d\n", new_current);
+    sprintf(buff, "current config %01d.%01d\n", new_current_int, new_current_dec);
     for (int i = 0; i < 5; i++)
     {
         Usart2Send(buff);
@@ -103,57 +104,37 @@ resp_t Comms_Power_Send_Current_Conf (unsigned char new_current)
 }
 
 
-// #define COMM_INIT    0
-// #define COMM_SEND_CMD    1
-// #define COMM_WAIT_ANSWER    2
-// unsigned char comm_power_send_cmd_state = 0;
-// unsigned char comm_power_send_cmd_cnt = 0;
-// resp_t Comms_Power_Send_Current_Conf2 (unsigned char new_current)
-// {
-//     resp_t resp = resp_continue;
-//     char buff [35] = { 0 };
+resp_t Comms_Power_Get_Version (void)
+{
+    char buff [35] = { 0 };
 
-//     switch (comm_power_send_cmd_state)
-//     {
-//     case COMM_INIT:
-//         comm_power_send_cmd_cnt = 250;
-//         comm_power_send_cmd_state++;
-//         break;
+    strcpy(buff, "version\n");
+    for (int i = 0; i < 5; i++)
+    {
+        Usart2Send(buff);
+        comms_timeout = 100;
+        comms_flag_ok_reset;
 
-//     case COMM_SEND_CMD:
-//         sprintf(buff, "current config %d\n", new_current);
-//         Usart2Send(buff);
-//         comms_timeout = 100;
-//         comms_flag_ok_reset;
-//         comm_power_send_cmd_state++;
-//         break;
-        
-//     case COMM_WAIT_ANSWER:
-//         if (comms_flag_ok_check)
-//         {
-//             comms_flag_ok_reset;
-//             comm_power_send_cmd_state = COMM_INIT;
-//             return resp_ok;
-//         }
+        while (comms_timeout)
+        {
+            if (comms_flag_ok_check)
+            {
+                comms_flag_ok_reset;
+                return resp_ok;
+            }
 
-//         if (!comms_timeout)
-//         {
-//             if (comm_power_send_cmd_cnt)
-//             {
-//                 comm_power_send_cmd_cnt--;
-//                 comm_power_send_cmd_state = COMM_SEND_CMD;
-//             }
-//             else
-//             {
-//                 comm_power_send_cmd_state = COMM_INIT;
-//                 return resp_timeout;
-//             }
-//         }
-//         break;
-//     }
+            Comms_Power_Update();
+        }
+    }
 
-//     return resp_timeout;
-// }
+    return resp_timeout;
+}
+
+
+char * Comms_Power_Check_Version (void)
+{
+    return s_power_version;
+}
 
 
 void Comms_Power_Timeouts (void)
@@ -185,6 +166,16 @@ void Comms_Power_Rx_Messages (char * msg)
         comms_flag_ok_set;
     }
 
+    if (!strncmp(msg, "Hrd ", sizeof ("Hrd ") - 1))
+    {
+        int len = strlen(msg);
+
+        if (len == 16)
+        {
+            strcpy(s_power_version, msg);
+            comms_flag_ok_set;
+        }
+    }
 }
 
 //--- end of file ---//

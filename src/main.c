@@ -197,9 +197,8 @@ int main(void)
                 //hardware defaults
                 mem_conf.temp_prot = TEMP_IN_70;    //70 degrees
                 mem_conf.temp_prot_deg = TEMP_DEG_DEFAULT;    //70 degrees
-                mem_conf.max_current_channels[0] = 255;
-                mem_conf.max_current_channels[1] = 255;
-                mem_conf.current_eight_amps = 0;
+                mem_conf.current_int = 4;
+                mem_conf.current_dec = 0;
                 mem_conf.channels_operation_mode = CCT1_MODE;
 
                 mem_conf.dmx_first_channel = 1;
@@ -226,12 +225,13 @@ int main(void)
             // //limpio los filtros
             // FiltersAndOffsets_Filters_Reset();
 
-            //reviso si es 4 o 8Amps
-            unsigned char current = ConvertCurrentFromMemory (&mem_conf);
+            // check and set conf current
+            unsigned char cint = mem_conf.current_int;
+            unsigned char cdec = mem_conf.current_dec;            
             char config = 1;
             while (config)
             {
-                resp = Comms_Power_Send_Current_Conf (current);
+                resp = Comms_Power_Send_Current_Conf (cint, cdec);
 
                 if (resp == resp_ok)
                     config = 0;
@@ -246,6 +246,27 @@ int main(void)
                     
                 }
             }
+
+            // check power board version
+            config = 1;
+            while (config)
+            {
+                resp = Comms_Power_Get_Version ();
+
+                if (resp == resp_ok)
+                    config = 0;
+
+                if (resp == resp_timeout)
+                {
+                    config = 0;
+                    while (LCD_ShowBlink("No comms wth pwr",
+                                         " version unknown",
+                                         1,
+                                         BLINK_NO) != resp_finish);
+                    
+                }
+            }
+            
 
             // packet reception enable
             DMX_EnableRx();

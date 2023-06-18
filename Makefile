@@ -247,96 +247,31 @@ tests:
 	gcc src/tests.c
 	./a.out
 
-tests_comms:
+
+tests_comms_power:
 	# first module objects to test
 	gcc -c src/comms_power.c -I. $(INCDIR) $(DDEFS)
 	# second auxiliary helper modules
 	gcc -c src/tests_ok.c -I $(INCDIR)
-	gcc src/tests_comms.c comms_power.o tests_ok.o -I $(INCDIR) $(DDEFS)
-	./a.out
-
-
-tests_funcsgsm_loc:
-	# first module objects to test
-	gcc -c src/funcs_gsm.c -I. $(INCDIR) $(DDEFS)
-	# second auxiliary helper modules
-	gcc -c src/tests_ok.c
-	# gcc -c src/tests_utils.c
 	gcc -c src/tests_mock_usart.c -I $(INCDIR)
-	gcc src/tests_funcsgsm_loc.c funcs_gsm.o tests_ok.o tests_mock_usart.o -I $(INCDIR) $(DDEFS)
+	gcc src/tests_comms_power.c comms_power.o tests_ok.o tests_mock_usart.o -I $(INCDIR) $(DDEFS)
 	./a.out
 
 
-tests_battery:
-	# first module objects to test
-	gcc -c --coverage src/battery.c -I. $(INCDIR) $(DDEFS)
-	gcc -c src/dsp.c -I. $(INCDIR) $(DDEFS)
-	# second auxiliary helper modules
-	gcc -c src/tests_ok.c
-	gcc -c src/tests_utils.c
-	gcc --coverage src/tests_battery.c battery.o dsp.o tests_ok.o tests_utils.o -I $(INCDIR) $(DDEFS)
-	./a.out
-	# process coverage
-	gcov battery.c -m
-
-
-tests_comms_from_panel:
-	# first module objects to test
-	gcc -c --coverage src/comms_from_panel.c -I. $(INCDIR) $(DDEFS)
-	# second auxiliary helper modules
-	gcc -c src/tests_ok.c -I $(INCDIR)
-	gcc -c src/tests_mock_usart.c -I $(INCDIR)
-	gcc --coverage src/tests_comms_from_panel.c comms_from_panel.o tests_ok.o tests_mock_usart.o -I $(INCDIR) $(DDEFS)
-	./a.out
-	# process coverage
-	gcov comms_from_panel.c -m
-
-tests_sms_gprs_data:
+tests_lcd_main_menu:
 	# first compile common modules (modules to test and dependencies)
-	gcc -c --coverage src/sms_gprs_data.c -I. $(INCDIR) $(DDEFS)
-	# second auxiliary helper modules
-	gcc -c src/tests_ok.c -I $(INCDIR)
-	gcc -c src/tests_mock_usart.c -I $(INCDIR)
-	gcc --coverage src/tests_sms_gprs_data.c sms_gprs_data.o tests_ok.o tests_mock_usart.o -I $(INCDIR) $(DDEFS)
-	./a.out
-	# process coverage
-	gcov sms_gprs_data.c -m
+	gcc -c src/lcd_utils.c -I. $(INCDIR)
+	gcc -c src/menues.c -I. $(INCDIR) -DSTM32F030
+	gcc -c src/temperatures.c -I. $(INCDIR)
+	# the module that implements tests_lcd_application.h functions
+	gcc -c `pkg-config --cflags gtk+-3.0` src/tests_lcd_main_menu.c -o tests_lcd_main_menu.o
+	# then the gtk lib modules
+	gcc -c `pkg-config --cflags gtk+-3.0` src/tests_glade_lcd.c -o tests_glade_lcd.o
+	# link everithing
+	gcc tests_glade_lcd.o tests_lcd_main_menu.o lcd_utils.o menues.o temperatures.o `pkg-config --libs gtk+-3.0` -o tests_gtk
+	# run the simulation
+	./tests_gtk
 
-tests_contact_id:
-	# first compile common modules (modules to test and dependencies)
-	gcc -c --coverage src/contact_id.c -I. $(INCDIR) $(DDEFS)
-	# second auxiliary helper modules
-	gcc -c src/tests_ok.c -I $(INCDIR)
-	gcc --coverage src/tests_contact_id.c contact_id.o tests_ok.o -I $(INCDIR) $(DDEFS)
-	./a.out
-	# process coverage
-	gcov contact_id.c -m
-
-tests_comm_profiling:
-	# first module objects to test and profiling
-	gcc -c -pg src/comm.c -I. $(INCDIR)
-	# second auxiliary helper modules
-	gcc -c -pg src/tests_ok.c -I $(INCDIR)
-	# compile the test and link with modules
-	gcc -pg src/tests_comm.c comm.o tests_ok.o
-	# test execution
-	./a.out
-	# process profiling
-	gprof a.out gmon.out > gprof.txt
-
-tests_hard_simul:
-	# first module objects to test
-	gcc -g -c src/funcs_gsm.c -I $(INCDIR) $(DDEFS)
-	gcc -g -c src/sim900_800.c -I $(INCDIR) $(DDEFS)
-	gcc -g -c src/comm.c -I $(INCDIR) $(DDEFS)
-	gcc -g -c src/sms_gprs_data.c -I $(INCDIR) $(DDEFS)
-	gcc -g -c src/contact_id.c -I $(INCDIR) $(DDEFS)
-	gcc -g -c src/reports.c -I $(INCDIR) $(DDEFS)
-	# second auxiliary helper modules
-	gcc -g -c src/tests_ok.c -I $(INCDIR)
-	gcc -g src/tests_hard_simul.c tests_ok.o funcs_gsm.o sim900_800.o comm.o sms_gprs_data.o contact_id.o reports.o -I $(INCDIR) $(DDEFS) -lpthread
-	# test execution
-	./a.out
 
 
 # *** EOF ***
