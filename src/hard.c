@@ -174,7 +174,7 @@ sw_actions_t CheckActions (void)
 
 
 #if defined HARDWARE_VERSION_2_0
-char hardware_version [] = {"Hardware: 2.0   "};
+char hardware_version [] = {"Hrd 2.0"};
 #else
 #error "No hard version selected on hard.c"
 #endif
@@ -183,8 +183,10 @@ char * HARD_GetHardwareVersion (void)
     return hardware_version;
 }
 
-#if defined FIRMWARE_VERSION_2_0
-char software_version [] = {"Firmware: 2.0   "};
+#if defined FIRMWARE_VERSION_2_1
+char software_version [] = {"Soft 2.1"};
+#elif defined FIRMWARE_VERSION_2_0
+char software_version [] = {"Soft 2.0"};
 #else
 #error "No soft version selected on hard.c"
 #endif

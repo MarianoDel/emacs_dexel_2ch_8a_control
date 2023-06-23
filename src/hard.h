@@ -19,7 +19,8 @@
 
 
 //----------- Firmware Version -------------------
-#define FIRMWARE_VERSION_2_0    // new control board version
+#define FIRMWARE_VERSION_2_1    // current in decimal steps
+// #define FIRMWARE_VERSION_2_0    // new control board version
 
 
 //-------- Clock Frequency ------------------------------------
@@ -43,7 +44,8 @@
 #error "define hardware version on hard.h"
 #endif
 
-#if (!defined FIRMWARE_VERSION_2_0)
+#if (!defined FIRMWARE_VERSION_2_1) && \
+    (!defined FIRMWARE_VERSION_2_0)
 #error "define firmware version on hard.h"
 #endif
 

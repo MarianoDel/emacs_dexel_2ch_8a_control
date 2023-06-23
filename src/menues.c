@@ -342,10 +342,15 @@ resp_t MENU_Main (mem_bkp_t * configurations, sw_actions_t sw_action)
         break;
         
     case MENU_CONF_VERSION_CONTROL:
-        resp = LCD_ShowBlink (HARD_GetHardwareVersion(),
-                              HARD_GetSoftwareVersion(),
+        sprintf(s_temp, "%s %s", HARD_GetHardwareVersion(), HARD_GetSoftwareVersion());
+        resp = LCD_ShowBlink (" Control Board  ",
+                              s_temp,
                               2,
                               BLINK_NO);
+        // resp = LCD_ShowBlink (HARD_GetHardwareVersion(),
+        //                       HARD_GetSoftwareVersion(),
+        //                       2,
+        //                       BLINK_NO);
 
         if (resp == resp_finish)
         {
@@ -357,7 +362,7 @@ resp_t MENU_Main (mem_bkp_t * configurations, sw_actions_t sw_action)
         break;
 
     case MENU_CONF_VERSION_POWER:
-        resp = LCD_ShowBlink ("Pwer Brd version",
+        resp = LCD_ShowBlink ("  Power Board   ",
                               Comms_Power_Check_Version(),
                               2,
                               BLINK_NO);
