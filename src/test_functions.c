@@ -50,9 +50,6 @@ extern volatile unsigned short adc_ch [];
 // Module Private Functions ----------------------------------------------------
 void TF_Led_Lock (void);
 void TF_Led (void);
-void TF_SW_UP (void);
-void TF_SW_DWN (void);
-void TF_SW_SEL (void);
 void TF_lcdE (void);
 void TF_lcdRS (void);
 void TF_lcdBklight (void);
@@ -64,6 +61,18 @@ void TF_Dmx_Break_Detect (void);
 void TF_Dmx_Packet (void);
 void TF_Dmx_Packet_Data (void);
 void TF_Temp_Channel (void);
+
+#ifdef HARDWARE_VERSION_2_0
+void TF_SW_UP (void);
+void TF_SW_DWN (void);
+void TF_SW_SEL (void);
+#endif
+
+#ifdef HARDWARE_VERSION_2_1
+void TF_CheckCCW (void);
+void TF_CheckCW (void);
+void TF_CheckSET (void);
+#endif
 
 
 // Module Functions ------------------------------------------------------------
@@ -82,7 +91,11 @@ void TF_Hardware_Tests (void)
     // TF_Dmx_Break_Detect ();
     // TF_Dmx_Packet ();    
     // TF_Dmx_Packet_Data ();
-    TF_Temp_Channel ();    
+    // TF_Temp_Channel ();    
+
+    TF_CheckSET ();
+    // TF_CheckCCW ();
+    // TF_CheckCW ();
     
 }
 
@@ -98,42 +111,6 @@ void TF_Led (void)
 
         Wait_ms(300);
     }
-}
-
-
-void TF_SW_UP (void)
-{
-    while (1)
-    {
-        if (SW_UP)
-            LED_ON;
-        else
-            LED_OFF;
-    }    
-}
-
-
-void TF_SW_SEL (void)
-{
-    while (1)
-    {
-        if (SW_SEL)
-            LED_ON;
-        else
-            LED_OFF;
-    }    
-}
-
-
-void TF_SW_DWN (void)
-{
-    while (1)
-    {
-        if (SW_DWN)
-            LED_ON;
-        else
-            LED_OFF;
-    }    
 }
 
 
@@ -404,4 +381,56 @@ void TF_Temp_Channel (void)
     }
 }
 
+
+#ifdef HARDWARE_VERSION_2_0
+void TF_SW_UP (void)
+{
+    while (1)
+    {
+        if (SW_UP)
+            LED_ON;
+        else
+            LED_OFF;
+    }    
+}
+
+
+void TF_SW_SEL (void)
+{
+    while (1)
+    {
+        if (SW_SEL)
+            LED_ON;
+        else
+            LED_OFF;
+    }    
+}
+
+
+void TF_SW_DWN (void)
+{
+    while (1)
+    {
+        if (SW_DWN)
+            LED_ON;
+        else
+            LED_OFF;
+    }    
+}
+#endif
+
+#ifdef HARDWARE_VERSION_2_1
+void TF_CheckSET (void)
+{
+    while (1)
+    {
+        if (CheckSET() > SW_NO)
+            LED_ON;
+        else
+            LED_OFF;
+
+        UpdateSwitches();
+    }    
+}
+#endif
 //--- end of file ---//

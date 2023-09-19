@@ -8,10 +8,6 @@
 #include "tests_lcd_configuration.h"
 #include "tests_lcd_application.h"
 
-#include "lcd_utils.h"
-#include "manual_mode.h"
-#include "parameters.h"
-
 // Module Types Constants and Macros -------------------------------------------
 #define LCD_LAST_ROW    (LCD_ROWS - 1)
 #define LCD_LAST_COLUMN    (LCD_COLUMNS - 1)

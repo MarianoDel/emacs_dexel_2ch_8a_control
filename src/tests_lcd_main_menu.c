@@ -151,6 +151,12 @@ unsigned char Check_SW_UP (void)
 }
 
 // -- Mocked Functions ---------------------------------------------------------
+char * Comms_Power_Check_Version (void)
+{
+    static char s_power_version [] = {"Hrd 2.1 Soft 1.3"};
+    return s_power_version;
+}
+
 char * HARD_GetHardwareVersion (void)
 {
     static char hard [] = {"Hardware: 1.2   "};

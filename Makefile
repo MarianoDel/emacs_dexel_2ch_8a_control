@@ -261,7 +261,7 @@ tests_comms_power:
 tests_lcd_main_menu:
 	# first compile common modules (modules to test and dependencies)
 	gcc -c src/lcd_utils.c -I. $(INCDIR)
-	gcc -c src/menues.c -I. $(INCDIR) -DSTM32F030
+	gcc -c src/menues.c -I. $(INCDIR)
 	gcc -c src/temperatures.c -I. $(INCDIR)
 	# the module that implements tests_lcd_application.h functions
 	gcc -c `pkg-config --cflags gtk+-3.0` src/tests_lcd_main_menu.c -o tests_lcd_main_menu.o
@@ -272,6 +272,21 @@ tests_lcd_main_menu:
 	# run the simulation
 	./tests_gtk
 
+
+tests_lcd_dmx_mode:
+	# first compile common modules (modules to test and dependencies)
+	gcc -c src/lcd_utils.c -I. $(INCDIR)
+	gcc -c src/dmx_utils.c -I. $(INCDIR)
+	gcc -c src/dmx_lcd_menu.c -I. $(INCDIR)
+	gcc -c src/dmx_mode.c -I. $(INCDIR)
+	# the module that implements tests_lcd_application.h functions
+	gcc -c `pkg-config --cflags gtk+-3.0` src/tests_lcd_dmx_mode.c -o tests_lcd_dmx_mode.o
+	# then the gtk lib modules
+	gcc -c `pkg-config --cflags gtk+-3.0` src/tests_glade_lcd.c -o tests_glade_lcd.o
+	# link everithing
+	gcc tests_glade_lcd.o tests_lcd_dmx_mode.o lcd_utils.o dmx_utils.o dmx_lcd_menu.o dmx_mode.o `pkg-config --libs gtk+-3.0` -o tests_gtk
+	# run the simulation
+	./tests_gtk
 
 
 # *** EOF ***

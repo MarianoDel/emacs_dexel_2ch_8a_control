@@ -1,12 +1,12 @@
-//---------------------------------------------------------
-// #### PROYECTO COMUNICADOR VAPORE SMS - Custom Board ####
+//--------------------------------------------------
+// #### PROJECT: 2CH 4A - 8A DMX - Custom Board ####
 // ##
 // ## @Author: Med
 // ## @Editor: Emacs - ggtags
 // ## @TAGS:   Global
 // ##
-// #### MAIN.C ############################################
-//---------------------------------------------------------
+// #### MAIN.C #####################################
+//--------------------------------------------------
 
 // Includes --------------------------------------------------------------------
 #include "stm32g0xx.h"
@@ -204,6 +204,15 @@ int main(void)
                 mem_conf.dmx_first_channel = 1;
                 mem_conf.dmx_channel_quantity = 2;                
                 mem_conf.program_type = AUTODETECT_MODE;
+
+#if (defined USE_ENCODER_DIRECT)
+                mem_conf.encoder_direction = 0;
+#elif (defined USE_ENCODER_INVERT)
+                mem_conf.encoder_direction = 1;
+#else
+#error "Please select default encoder direction on hard.h"
+#endif
+                
             }
 
 #ifdef USE_TEMP_PROT
@@ -376,6 +385,10 @@ int main(void)
                     }
                 }
             }
+
+#ifdef HARDWARE_VERSION_2_1
+            UpdateEncoder();
+#endif
             break;
 
         case MAIN_IN_MANUAL_MODE:
@@ -425,6 +438,10 @@ int main(void)
                     packet_cnt = 0;
                 }
             }
+
+#ifdef HARDWARE_VERSION_2_1
+            UpdateEncoder();
+#endif
             break;
 
         case MAIN_ENTERING_MAIN_MENU:
@@ -445,6 +462,16 @@ int main(void)
             break;
 
         case MAIN_ENTERING_MAIN_MENU2:
+#ifdef HARDWARE_VERSION_2_1
+            if (CheckSET() < SW_HALF)
+                main_state = MAIN_HARD_INIT;
+            else
+            {
+                MENU_Main_Reset();
+                main_state++;
+            }
+#endif
+#ifdef HARDWARE_VERSION_2_0
             if (Check_SW_SEL() < SW_HALF)
                 main_state = MAIN_HARD_INIT;
             else if ((Check_SW_UP() > SW_NO) &&
@@ -453,6 +480,7 @@ int main(void)
                 MENU_Main_Reset();
                 main_state++;
             }
+#endif
             break;
             
         case MAIN_IN_MAIN_MENU:
@@ -471,6 +499,9 @@ int main(void)
             if (resp == resp_finish)
                 main_state = MAIN_HARD_INIT;
 
+#ifdef HARDWARE_VERSION_2_1
+            UpdateEncoder();
+#endif            
             break;
 
         default:
