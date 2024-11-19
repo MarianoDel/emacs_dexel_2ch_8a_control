@@ -20,7 +20,8 @@
 
 
 //----------- Firmware Version -------------------
-#define FIRMWARE_VERSION_2_1    // current in decimal steps
+#define FIRMWARE_VERSION_2_2    // show temp on screens
+// #define FIRMWARE_VERSION_2_1    // current in decimal steps
 // #define FIRMWARE_VERSION_2_0    // new control board version
 
 
@@ -50,7 +51,8 @@
 #error "define hardware version on hard.h"
 #endif
 
-#if (!defined FIRMWARE_VERSION_2_1) && \
+#if (!defined FIRMWARE_VERSION_2_2) && \
+    (!defined FIRMWARE_VERSION_2_1) && \
     (!defined FIRMWARE_VERSION_2_0)
 #error "define firmware version on hard.h"
 #endif

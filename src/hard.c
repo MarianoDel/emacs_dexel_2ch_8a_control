@@ -411,7 +411,9 @@ char * HARD_GetHardwareVersion (void)
     return hardware_version;
 }
 
-#if defined FIRMWARE_VERSION_2_1
+#if defined FIRMWARE_VERSION_2_2
+char software_version [] = {"Soft 2.2"};
+#elif defined FIRMWARE_VERSION_2_1
 char software_version [] = {"Soft 2.1"};
 #elif defined FIRMWARE_VERSION_2_0
 char software_version [] = {"Soft 2.0"};
