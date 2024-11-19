@@ -177,7 +177,6 @@ resp_t DMXMode (unsigned char * ch_val, sw_actions_t action)
 	{
 	    if (showing_temp)
 	    {
-		printf("on dmx string\n");
 		showing_temp = 0;
 		dmx_mode_show_temp_timer = 10000;
 
@@ -198,7 +197,6 @@ resp_t DMXMode (unsigned char * ch_val, sw_actions_t action)
 		Lcd_senddata(*(s_temp + 0));
 		Lcd_senddata(*(s_temp + 1));
 		Lcd_senddata(*(s_temp + 2));
-		printf("on temp string: %s\n", s_temp);		
 	    }
 	}
         break;
