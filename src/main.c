@@ -163,23 +163,33 @@ int main(void)
     unsigned char packet_cnt = 0;
 
     // check NTC connection on init
-    unsigned char check_ntc = 0;
+#ifdef USE_TEMP_PROT
+#pragma message "Temp protection is on"
     unsigned short temp_filtered = 0;
     MA16_U16Circular_Reset(&temp_filter);
     for (int i = 0; i < 16; i++)
     {
         temp_filtered = MA16_U16Circular(&temp_filter, Temp_Channel);
+	Temp_Last_Temp_Filtered_Set (temp_filtered);
         Wait_ms(30);
     }
 
     if (temp_filtered < NTC_SHORTED)
     {
         CTRL_FAN_ON;
-        check_ntc = 0;
+	Temp_Sensor_Present_Reset();
     }
-    else
-        check_ntc = 1;
-    // check NTC connection on init    
+    else	
+	Temp_Sensor_Present_Set();
+#else
+#ifdef USE_FAN_ALWAYS_ON_WITHOUT_TEMP_PROT
+#pragma message "No temp protection and FAN always ON"
+    CTRL_FAN_ON;
+#else
+#pragma message "No temp protection and FAN is OFF"    
+#endif
+#endif    
+    // end of check NTC connection on init    
     
     while (1)
     {
@@ -214,11 +224,6 @@ int main(void)
 #endif
                 
             }
-
-#ifdef USE_TEMP_PROT
-            for (int i = 0; i < 16; i++)
-                temp_filtered = MA16_U16Circular(&temp_filter, Temp_Channel);
-#endif    //USE_TEMP_PROT
 
             main_state++;
             break;
@@ -542,13 +547,14 @@ int main(void)
         Comms_Power_Update();
 
 #ifdef USE_TEMP_PROT
-        if (check_ntc)    //NTC NOT SHORTED
+        if (Temp_Sensor_Present_Get())    //NTC NOT SHORTED
         {
             if ((main_state < MAIN_ENTERING_MAIN_MENU) &&
                 (!timer_temp))
             {
                 timer_temp = 100;
                 temp_filtered = MA16_U16Circular(&temp_filter, Temp_Channel);
+		Temp_Last_Temp_Filtered_Set (temp_filtered);
 
                 if (CheckTempGreater (temp_filtered, mem_conf.temp_prot))            
                 {
@@ -625,10 +631,6 @@ int main(void)
         }    // ntc not shorted
 #endif    //USE_TEMP_PROT        
         
-#ifdef USE_CTROL_FAN_ALWAYS_ON
-        CTRL_FAN_ON;
-#endif
-        
     }    //end of while 1
 
     return 0;
@@ -686,7 +688,7 @@ void TimingDelay_Decrement(void)
     // USART_Timeouts();
     Comms_Power_Timeouts ();
 
-#if (defined USE_TEMP_PROT) || (defined USE_NTC_DETECTION)
+#ifdef USE_TEMP_PROT
     if (timer_temp)
         timer_temp--;
 #endif

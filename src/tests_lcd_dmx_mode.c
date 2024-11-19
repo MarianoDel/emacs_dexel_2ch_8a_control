@@ -12,6 +12,7 @@
 #include "dmx_lcd_menu.h"
 #include "dmx_mode.h"
 #include "parameters.h"
+#include "temperatures.h"
 
 
 // Module Types Constants and Macros -------------------------------------------
@@ -57,6 +58,12 @@ gboolean Test_Main_Loop (gpointer user_data)
         dmx_buff_data[0] = 0;
         dmx_buff_data[1] = 128;
         dmx_buff_data[2] = 255;
+
+	// use ntc or not
+	Temp_Sensor_Present_Set();
+	// Temp_Sensor_Present_Reset();
+	printf("1 for ntc present 0 otherwise - sensor value: %d\n", Temp_Sensor_Present_Get());
+	
         setup_done = 1;
     }
 
@@ -94,6 +101,8 @@ gboolean Test_Timeouts (gpointer user_data)
     //timeout for dmx_mode or manual_mode
     if (mode_effect_timer)
         mode_effect_timer--;
+
+    DMXMode_UpdateTimers ();
     
     return TRUE;
 }

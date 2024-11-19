@@ -278,13 +278,30 @@ tests_lcd_dmx_mode:
 	gcc -c src/lcd_utils.c -I. $(INCDIR)
 	gcc -c src/dmx_utils.c -I. $(INCDIR)
 	gcc -c src/dmx_lcd_menu.c -I. $(INCDIR)
+	gcc -c src/temperatures.c -I. $(INCDIR)
 	gcc -c src/dmx_mode.c -I. $(INCDIR)
 	# the module that implements tests_lcd_application.h functions
 	gcc -c `pkg-config --cflags gtk+-3.0` src/tests_lcd_dmx_mode.c -o tests_lcd_dmx_mode.o
 	# then the gtk lib modules
 	gcc -c `pkg-config --cflags gtk+-3.0` src/tests_glade_lcd.c -o tests_glade_lcd.o
 	# link everithing
-	gcc tests_glade_lcd.o tests_lcd_dmx_mode.o lcd_utils.o dmx_utils.o dmx_lcd_menu.o dmx_mode.o `pkg-config --libs gtk+-3.0` -o tests_gtk
+	gcc tests_glade_lcd.o tests_lcd_dmx_mode.o lcd_utils.o dmx_utils.o dmx_lcd_menu.o temperatures.o dmx_mode.o `pkg-config --libs gtk+-3.0` -o tests_gtk
+	# run the simulation
+	./tests_gtk
+
+
+tests_lcd_manual_mode:
+	# first compile common modules (modules to test and dependencies)
+	gcc -c src/lcd_utils.c -I. $(INCDIR)
+	gcc -c src/dmx_utils.c -I. $(INCDIR)
+	gcc -c src/temperatures.c -I. $(INCDIR)
+	gcc -c src/manual_mode.c -I. $(INCDIR)
+	# the module that implements tests_lcd_application.h functions
+	gcc -c `pkg-config --cflags gtk+-3.0` src/tests_lcd_manual_mode.c -o tests_lcd_manual_mode.o
+	# then the gtk lib modules
+	gcc -c `pkg-config --cflags gtk+-3.0` src/tests_glade_lcd.c -o tests_glade_lcd.o
+	# link everithing
+	gcc tests_glade_lcd.o tests_lcd_manual_mode.o lcd_utils.o dmx_utils.o temperatures.o manual_mode.o `pkg-config --libs gtk+-3.0` -o tests_gtk
 	# run the simulation
 	./tests_gtk
 
