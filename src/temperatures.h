@@ -48,7 +48,8 @@
 #define TEMP_DEG_DEFAULT    70
 
 // #define TEMP_DEG_OFFSET    -89
-#define TEMP_DEG_OFFSET    -95    // meas adjusted
+// #define TEMP_DEG_OFFSET    -95    // meas adjusted
+#define TEMP_DEG_OFFSET    -100    // meas adjusted on 17-01-2025
 // #define TEMP_IN_OFFSET    2284
 // #define TEMP_IN_OFFSET    1952    // meas adjusted
 #define TEMP_IN_OFFSET    2211    // from curves calc
