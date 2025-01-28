@@ -26,6 +26,7 @@ typedef enum {
     MENU_SHOW_TEMP,
     MENU_SHOW_CURRENT_TEMP,
     MENU_SHOW_VERSION,
+    MENU_SHOW_ENCODER_DIR,
     MENU_SHOW_END_CONF,
     
     MENU_CONF_OPERATION_MODE,
@@ -35,6 +36,7 @@ typedef enum {
     MENU_CONF_CURRENT_TEMP_1,
     MENU_CONF_VERSION_CONTROL,
     MENU_CONF_VERSION_POWER,
+    MENU_CONF_ENCODER_DIR,
     MENU_END_CONF
 
 } menu_state_t;
@@ -184,21 +186,39 @@ resp_t MENU_Main (mem_bkp_t * configurations, sw_actions_t sw_action)
             menu_state = MENU_SHOW_CURRENT_TEMP;
 
         if (resp == resp_change_all_up)
-            menu_state = MENU_SHOW_END_CONF;
+            menu_state = MENU_SHOW_ENCODER_DIR;
         
         if (resp == resp_selected)
         {
             menu_state = MENU_CONF_VERSION_CONTROL;
         }
         break;
+
+    case MENU_SHOW_ENCODER_DIR:
         
+        resp = LCD_ShowSelectv2((const char *) "Encoder Dir Cnfg",                                
+                                sw_action);
+
+        if (resp == resp_change)
+            menu_state = MENU_SHOW_VERSION;
+
+        if (resp == resp_change_all_up)
+            menu_state = MENU_SHOW_END_CONF;
+        
+        if (resp == resp_selected)
+        {
+	    LCD_EncoderChangeReset();
+            menu_state = MENU_CONF_ENCODER_DIR;
+        }
+        break;
+	
     case MENU_SHOW_END_CONF:
 
         resp = LCD_ShowSelectv2((const char *) "Save & Exit     ",
                                 sw_action);
 
         if (resp == resp_change)
-            menu_state = MENU_SHOW_VERSION;
+            menu_state = MENU_SHOW_ENCODER_DIR;
 
         if (resp == resp_change_all_up)
             menu_state = MENU_SHOW_OPERATION_MODE;
@@ -374,7 +394,35 @@ resp_t MENU_Main (mem_bkp_t * configurations, sw_actions_t sw_action)
             resp = resp_continue;
         }
         break;
+
+    case MENU_CONF_ENCODER_DIR:
+
+        resp = LCD_EncoderShowSelect ("Encoder CW  ->  ",
+				      "Encoder CCW <-  ",
+				      sw_action,
+				      &onoff);
+                                     
+        if (resp == resp_selected)
+        {
+            switch (onoff)
+            {
+            case 1:
+                configurations->encoder_direction = 0;
+                break;
+            case 2:
+                configurations->encoder_direction = 1;
+                break;
+            default:
+                configurations->encoder_direction = 0;
+                break;
+            }
+
+            menu_state = MENU_SHOW_ENCODER_DIR;
+            resp = resp_continue;
+        }
         
+        break;
+	
     case MENU_END_CONF:
         resp = LCD_ShowBlink ("   Saving new   ",
                               "    params...   ",
