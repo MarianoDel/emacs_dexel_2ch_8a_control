@@ -37,8 +37,8 @@
 #define USE_SW_UP_FOR_SW_DWN    // front panel error, change UP for DWN 28-04-2023
 
 // --- Encoder Motion Direction --- //
-#define USE_ENCODER_DIRECT    //dt one on rising clk is CW (clockwise) for green encoder
-// #define USE_ENCODER_INVERT    //dt one on rising clk is CCW (counter-clockwise) for blue encoder
+// #define USE_ENCODER_DIRECT    //dt one on rising clk is CW (clockwise) for green encoder
+#define USE_ENCODER_INVERT    //dt one on rising clk is CCW (counter-clockwise) for blue encoder
 
 //---- End of Features Configuration -------------
 

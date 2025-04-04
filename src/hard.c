@@ -30,8 +30,10 @@
 #define SWITCHES_THRESHOLD_MIN	10    //50 ms
 #define SWITCHES_THRESHOLD_MIN_FAST    2    //10 ms
 
-#define ENCODER_COUNTER_ROOF    10
-#define ENCODER_COUNTER_THRESHOLD    3
+// #define ENCODER_COUNTER_ROOF    10
+// #define ENCODER_COUNTER_THRESHOLD    3
+#define ENCODER_COUNTER_ROOF    6
+#define ENCODER_COUNTER_THRESHOLD    2    //for bourns encoder
 #endif
 
 // Externals -------------------------------------------------------------------
